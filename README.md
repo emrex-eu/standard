@@ -29,15 +29,15 @@ In its most basic form, the EMREX network can be drawn like this:
 
 There are 3 basic components of the network
   1. **NCP:** Stands for National Contact Point and is the point the EMREX client accesses to get results from the host institution. There can be several NCP's in a network and this NCP can represent either one or several host institutions. The most usual solution is that an NCP represents all the institutions in one country. The NCP's implementation may vary from country to country. However, the NCP has four basic functions that must be complied to:
-    * Receive and handle a request from the client. This request is a POST over HTTPS
-    * Provide a secure login for the student in order to verify the student
-    * Allow the student to select their results from the proper host institution
-    * Return a correct response to the client. This response is a signed XML document with the ELMO XML
+    i. Receive and handle a request from the client. This request is a POST over HTTPS
+    ii. Provide a secure login for the student in order to verify the student
+    iii. Allow the student to select their results from the proper host institution
+    iiii. Return a correct response to the client. This response is a signed XML document with the ELMO XML
   2. **HEI Client/SMP:** SMP is short for Student Mobility Plugin. A HEI client/SMP is an application at the home institution that initiates the transfer of results from host institution to the home institution. This is most usually a web application, but again, the implementations may vary from country to country. However, the client has four basic functions that must be complied to:
-    * Fetch NCP information from the EMREG component and display available NCP's to the student
-    * Send a correct request to the proper NCP
-    * Handle the response from the NCP and verify the results
-    * Store the results in the home institutions student information system
+    i. Fetch NCP information from the EMREG component and display available NCP's to the student
+    ii. Send a correct request to the proper NCP
+    iii. Handle the response from the NCP and verify the results
+    iiii. Store the results in the home institutions student information system
   3. **EMREG:** Short for EMREX Registry and is the only central component in the EMREX network, meaning there is only one. EMREG holds a list of all approved NCP's in the EMREX network. The EMREX clients can query the EMREG in order to display available NCP's to the student who wishes to select their host institution
 
 ### Standard data: NCP Information
@@ -61,10 +61,10 @@ Once the NCP has collected all the student's results, the results can be returne
   1. **Session ID:** This is the same session ID as in the client request. This is so the client can verify that the response comes from the same NCP as it sent its request to
   2. **Return message:** A message from the NCP to the client, for instance in the case where there was an error on the NCP
   3. **Return code:** A code telling the client if the operation on the NCP side was successful. As of today, the following codes are used:
-    a. **NCP_OK:** Everything went well, results have been transferred
-    b. **NCP_ERROR:** Something went wrong, see return message for details
-    c. **NCP_NO_RESULTS:** There were no results to import into the client
-    d. **NCP_CANCEL:** The user has cancelled
+    i. **NCP_OK:** Everything went well, results have been transferred
+    ii. **NCP_ERROR:** Something went wrong, see return message for details
+    iii. **NCP_NO_RESULTS:** There were no results to import into the client
+    iiii. **NCP_CANCEL:** The user has cancelled
   4. **ELMO:** The results in the ELMO-XML format. The ELMO format is described in a later section. The ELMO is signed by the NCP, using its private SSL key. This signature is verified by the client, using the public ssl key, provided by EMREG
 
 The ELMO format
