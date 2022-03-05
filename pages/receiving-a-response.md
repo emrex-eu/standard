@@ -7,13 +7,13 @@ The response is sent as a HTTP POST back to the EMREX Client with four parameter
 
 The following return codes are supported (the list is subject to change):
 
-1. EMP_OK: Everything wen well, results have been transferred
+1. NCP_OK: Everything wen well, results have been transferred
 
-2. EMP_ERROR: Something went wrong. The error will be in the “returnMessage”
+2. NCP_ERROR: Something went wrong. The error will be in the “returnMessage”
 
-3. EMP_NO_RESULTS: There were no results to import into the client.
+3. NCP_NO_RESULTS: There were no results to import into the client.
 
-4. EMP_CANCEL: The user has cancelled
+4. NCP_CANCEL: The user has cancelled
 
 The “sessionId” must be the same as the one sent in the request. If it’s not the same as the one that was sent, this response should not be processed.
 

@@ -76,10 +76,10 @@ Once the EMP has collected all the student's results, the results can be returne
   1. **Session ID:** This is the same session ID as in the client request. This is so the client can verify that the response comes from the same EMP as it sent its request to
   2. **Return message:** A message from the EMP to the client, for instance in the case where there was an error on the EMP
   3. **Return code:** A code telling the client if the operation on the EMP side was successful. As of today, the following codes are used:
-      1. **EMP_OK:** Everything went well, results have been transferred
-      2. **EMP_ERROR:** Something went wrong, see return message for details
-      3. **EMP_NO_RESULTS:** There were no results to import into the client
-      4. **EMP_CANCEL:** The user has cancelled
+      1. **NCP_OK:** Everything went well, results have been transferred
+      2. **NCP_ERROR:** Something went wrong, see return message for details
+      3. **NCP_NO_RESULTS:** There were no results to import into the client
+      4. **NCP_CANCEL:** The user has cancelled
   4. **ELMO:** The results in the ELMO-XML format. The ELMO format is described in a later section. The ELMO is signed by the EMP, using its private SSL key. This signature is verified by the client, using the public ssl key, provided by EMREG
 
 The ELMO format
