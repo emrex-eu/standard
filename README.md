@@ -20,6 +20,20 @@ For the purpose of this document, the following terms and definitions apply:
   *	**Response:** A technical response sent via HTTP
   *	**Session:** A session is in EMREX is the is the technical term for the whole process the student goes through to fetch data: From login in at home institution to fetching results and returning them should all be part of the same session. This is to ensure that at no point during the result transfer, the process has been tampered with
 
+Newsletters
+-----------
+
+- [September 2019](newsletters/2019-03-EMREX-Newsletter.pdf)  
+- [August 2019](newsletters/2019-09-EMREX-Newsletter.pdf)
+- [December 2019](newsletters/2019-12-EMREX-Newsletter.pdf)
+- [May 2020](newsletters/2020-05-EMREX-Newsletter.pdf)
+- [September 2020](newsletters/2020-09-EMREX-Newsletter.pdf)
+- [February 2021](newsletters/2021-02-EMREX-Newsletter.pdf)
+- [September 2021](newsletters/2021-09-EMREX-Newsletter.pdf)
+- [January 2022](newsletters/2022-01-EMREX-Newsletter.pdf)
+- [September 2022](newsletters/2022-09-EMREX-Newsletter.pdf)
+- [January 2023](newsletters/2023-01-EMREX-Newsletter.pdf)
+
 Publications
 ------------
 
