@@ -1,12 +1,11 @@
-@startuml EMREX_iGov_Compliant_Flow_Complete
+@startuml EMREX_iGov_Compliant_Flow_ServerSide
 autonumber "<b>[000]"
 
-title **EMREX Flow - OpenID iGov Compliant**
+title **EMREX Flow - OpenID iGov Compliant (Server-Side Auth Request, No External Browser)**
 
 skinparam monochrome false
 skinparam defaultFontName Arial
 
-'actor "Student Browser" as browser
 participant "EMC Frontend" as emc_fe
 participant "EMC Backend" as emc_bff
 participant "EMP Frontend" as emp_fe
@@ -17,102 +16,101 @@ participant "EMREG" as emreg
 == 1. Institution Selection ==
 emc_fe -> emc_bff: Get available EMPs
 emc_bff -> emreg: GET /emp-list
-emreg --> emc_bff: EMP data
+emreg --> emc_bff: EMP data (iGov 4.1.1)
 emc_bff --> emc_fe: EMP data
-emc_fe -> emc_fe: Show EMP's
+emc_fe -> emc_fe: Show EMP selection UI
 
 == 2. Authorization Request Preparation ==
-emc_fe -> emc_fe: Select EMP
-emc_fe -> emc_bff: Prepare auth request / client redirect
+emc_fe -> emc_bff: Prepare auth request for selected EMP
 
 group **PKCE + JWT Preparation (iGov 5.2)**
   emc_bff -> emc_bff: code_verifier = BASE64URL(SHA256(random(32)))\ncode_challenge = BASE64URL(SHA256(code_verifier))
-  emc_bff -> emc_bff: Generate JWT with:\n- Header: alg=RS256, typ=JWT, kid=EMC_KEY_ID\n- Payload: iss=EMC_CLIENT_ID, sub=EMC_CLIENT_ID, aud=EMP_URL,\n jti=UUID(), iat=current_timestamp, exp=iat+300, nbf=iat, azp=EMC_CLIENT_ID (iGov 5.6.2)
+  emc_bff -> emc_bff: Generate JWT with:\n- Header: alg=RS256, typ=JWT, kid=EMC_KEY_ID\n- Payload: iss=EMC_CLIENT_ID, sub=EMC_CLIENT_ID, aud=EMP_TOKEN_URL,\n jti=UUID(), iat=current_timestamp, exp=iat+300, nbf=iat, azp=EMC_CLIENT_ID (iGov 5.6.2)
+  emc_bff -> emc_bff: Store code_verifier + state in session\n(linked to EMC session)
 end group
 
-'emc_bff --> emc_fe: Authorization parameters
-emc_bff --> emp_bff: Redirect to EMP with:\nresponse_type=code\nclient_id=emc-nl-university1\nredirect_uri=https://emc.university.nl/callback\nscope=openid elmo\nstate=xYz123abc456def789\nnonce=nOnCe1234567890\ncode_challenge=E9Melv6jU2FjOq4A2TesOYsX9jpwcKQV86Z5HnXKhtI\ncode_challenge_method=S256\nclient_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer\nclient_assertion=ey
+emc_bff --> emc_fe: Authorization URL parameters
+emc_fe -> emp_bff: HTTP 302 Redirect to EMP with:\nresponse_type=code\nclient_id=EMC_CLIENT_ID\nredirect_uri=https://emc.university.nl/callback\nscope=openid elmo\nstate=CSRF_TOKEN\nnonce=NONCE_VALUE\ncode_challenge=CODE_CHALLENGE\ncode_challenge_method=S256\nclient_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer\nclient_assertion=JWT
 
 == 3. EMP Client Verification (iGov 5.6) and result selection ==
-emp_bff -> emreg: GET /clients/emc-nl-university1\nAuthorization: Bearer EMP_API_TOKEN
+emp_bff -> emreg: GET /clients/EMC_CLIENT_ID\nAuthorization: Bearer EMP_API_TOKEN
 emreg --> emp_bff: Client metadata with public key
 
 group **JWT Validation (iGov 5.6.3)**
-  emp_bff -> emp_bff: verify redirect_uri param against Emreg redirect_uri
   emp_bff -> emp_bff: Verify signature with EMC public key
-  emp_bff -> emp_bff: Validate claims:\n- iss == "emc-nl-university1"\n- aud == "https://emp.sweden.edu/token"\n- exp > current time\n- nbf <= current time\n- azp == "emc-nl-university1"
+  emp_bff -> emp_bff: Validate claims:\n- iss == EMC_CLIENT_ID\n- aud == EMP_TOKEN_URL\n- exp > current time\n- nbf <= current time\n- azp == EMC_CLIENT_ID
 end group
 
 alt JWT valid
-    emp_bff -> emp_fe: Login @ EMP
+    emp_bff -> emp_fe: Redirect to EMP login
+    emp_fe -> emp_bff: Get results
+    emp_bff -> emp_bff: Get student results
+    emp_bff --> emp_fe: Results for selection
+    emp_fe -> emp_fe: Show results selection UI
+
+    emp_fe -> emp_fe: User selects results + consent
+    emp_fe -> emp_rs: Store user selection (ref_id=UUID(), selected_results=[...])
+    emp_rs --> emp_fe: Confirm storage
+
+    group **Authorization Code Generation (iGov 6.2)**
+      emp_fe -> emp_bff: Generate auth code (code=AUTH_CODE_123)
+      emp_bff -> emp_bff: Bind code to:\n- ref_id:UUID()\n- selected_results:[...]\n- client_id:EMC_CLIENT_ID\n- redirect_uri:https://emc.university.nl/callback
+      emp_bff --> emp_fe: Auth code
+    end group
+    emp_fe -> emc_fe: HTTP 302 Redirect to EMC callback\n(https://emc.university.nl/callback?code=AUTH_CODE_123&state=CSRF_TOKEN)
 else JWT invalid
-    emp_fe --> emc_bff: Redirect to redirectURI with:\nerror=invalid_client\nerror_description=JWT+verification+failed\nstate=xYz123abc456def789 (iGov 5.7)
-    emc_bff --> emc_fe:
-    emc_fe --> browser: Show error
+    emp_fe --> emc_fe: HTTP 302 Redirect to EMC with:\nerror=invalid_client\nerror_description=JWT+verification+failed\nstate=ORIGINAL_STATE (iGov 5.7)
 end
 
-emp_fe -> emp_bff: Get student results
-emp_bff --> emp_fe: Results for selection
-emp_fe --> browser: Show results selection
-
-browser -> emp_fe: Select results + consent
-emp_fe -> emp_rs: Store user selection (ref_id=UUID(), selected_results=[...])
-emp_rs --> emp_fe: Confirm storage
-
-group **Authorization Code Generation (iGov 6.2)**
-  emp_fe -> emp_bff: Generate auth code (code=AUTH_CODE_123)
-  emp_bff -> emp_bff: Bind code to user selection\nStore mapping:\n- code:AUTH_CODE_123\n- ref_id:UUID()\n- selected_results:[...]\n- client_id:emc-nl-university1\n- redirect_uri:https://emc.university.nl/callback
-  emp_bff --> emp_fe: Auth code
-end group
-
-emp_fe --> browser: Redirect to EMC with:\ncode=AUTH_CODE_123\nstate=xYz123abc456def789 (iGov 6.3)
+== 4. Callback Handling (EMC Server) ==
+emc_fe -> emc_bff: Receive callback with auth code + state
+emc_bff -> emc_bff: Validate state matches session
+emc_bff -> emc_bff: Retrieve code_verifier from session
 
 == 5. Token Exchange (iGov 7) ==
-browser -> emc_fe: Return with auth code
-emc_fe -> emc_bff: Forward auth code + code_verifier
+emc_bff -> emp_bff: POST /token with:\ngrant_type=authorization_code\ncode=AUTH_CODE_123\nredirect_uri=https://emc.university.nl/callback\ncode_verifier=CODE_VERIFIER\nclient_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer\nclient_assertion=NEW_JWT
 
-group **Token Request (iGov 7.1)**
-  emc_bff -> emp_bff: POST /token with:\ngrant_type=authorization_code\ncode=AUTH_CODE_123\nredirect_uri=https://emc.university.nl/callback\ncode_verifier=CODE_VERIFIER\nclient_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer\nclient_assertion=NEW_JWT
-end group
-
-emp_bff -> emreg: GET /clients/emc-nl-university1\nAuthorization: Bearer EMP_API_TOKEN
+emp_bff -> emreg: GET /clients/EMC_CLIENT_ID\nAuthorization: Bearer EMP_API_TOKEN
 emreg --> emp_bff: Client metadata with public key
 
 group **Token Validation (iGov 7.2)**
   emp_bff -> emp_bff: Verify JWT signature with EMC public key
   emp_bff -> emp_bff: Validate code_verifier against code_challenge
-  emp_bff -> emp_bff: Generate tokens:\n- access_token: ACCESS_TOKEN_456\n- id_token: ID_TOKEN_789\n- expires_in: 60?\n- user info: \n --fullname\n --bday\n- token_type: Bearer
+  emp_bff -> emp_bff: Generate tokens:\n- access_token: ACCESS_TOKEN_456\n- id_token: ID_TOKEN_789\n- expires_in: 60\n -user_full_name\n -user_birthday\n- token_type: Bearer
 end group
 
 emp_bff --> emc_bff: Access token + ID token (iGov 7.3)
 
 == 6. Data Retrieval with Signed Responses ==
 group **ELMO XML (iGov 8.1)**
-  emc_bff -> emp_rs: GET /results\nContent-type: emrex/elmo\nAuthorization: Bearer ACCESS_TOKEN_456\nX-Request-ID: REQ_12345
+  emc_bff -> emp_rs: GET /results?data_format=elmo\nAuthorization: BearerCCESS_TOKEN_456\nX-Request-ID: REQ_12345
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: Signed ELMO XML?\nX-Signature: EMP_SIGNATURE_ABC123\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: Signed ELMO XML\nX-Signature: EMP_SIGNATURE_ABC123\nX-Signature-Algorithm: RS256
 end group
-group **User [Optional]**
-  emc_bff -> emp_rs: GET /userinfo\nContent-type: emrex/user_info\nAuthorization: Bearer ACCESS_TOKEN_456
+
+group **User Info [Optional] (iGov 9)**
+  emc_bff -> emp_rs: GET /results?data_format=userinfo\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: User information (iGov 9.1)\n Add Eidas props\n or user schema like:\n{\n  "sub": "user123",\n  "given_name": "John",\n  "family_name": "Doe",\n  "birthdate": "1990-01-01",\n  "student_id": "s1234567",\n  "institution": "University of Sweden"\n}
+  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
 end group
-group **EIDAS [Optional]**
-  emc_bff -> emp_rs: GET /eidas\nContent-type: emrex/user_info\nAuthorization: Bearer ACCESS_TOKEN_456
+
+
+group **EIDAS Info [Optional] (iGov 9)**
+  emc_bff -> emp_rs: GET /results?data_format=eidas\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: User information (iGov 9.1)\n Add Eidas props\n or user schema like:\n{\n  "sub": "user123",\n  "given_name": "John",\n  "family_name": "Doe",\n  "birthdate": "1990-01-01",\n  "student_id": "s1234567",\n  "institution": "University of Sweden"\n}
+  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
 end group
-group **PDF Documen [Optional]t**
-  emc_bff -> emp_rs: GET /results\nContent-type: emrex/pdf\nAuthorization: Bearer ACCESS_TOKEN_456
+
+group **PDF Document [Optional]**
+  emc_bff -> emp_rs: GET /results?data_format=pdf\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
   emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
 end group
 
 group **ELM JSON [Optional]**
-  emc_bff -> emp_rs: GET /results\nContent-type: emrex/elm\nAuthorization: Bearer ACCESS_TOKEN_456
+  emc_bff -> emp_rs: GET /results?data_format=elm\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
   emp_rs --> emc_bff: ELM JSON\nX-Signature: EMP_SIGNATURE_GHI789\nX-Signature-Algorithm: RS256
 end group
-
 
 @enduml
