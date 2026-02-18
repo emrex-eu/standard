@@ -1,0 +1,42 @@
+@startuml EMREX_2.0_Simple_Flow
+
+title **EMREX v2.0 Simplified Flow**
+
+skinparam monochrome false
+skinparam defaultFontName Arial
+
+participant "Student" as student
+participant "Emrex Client (EMC)" as emc
+participant "Foreign Emrex Data Provider (EMP)" as emp
+participant "EMREX Registry\n(EMREG)" as emreg
+
+== 1. Select Emrex data provider ==
+student -> emc: Logs in to the emrex client
+emc -> emreg: Requests list of\navailable Emrex data providers
+emreg --> emc: Returns list of Emrex data providers(e.g., )
+emc -> student: Shows selection screen
+student -> emc: Selects Emrex data provider\n(e.g., "DUO")
+
+== 2. Secure Redirect to Emrex data provider ==
+emc -> emp: Redirects student with\nsecure link (OAuth2 + PKCE protected)
+note right: Student leaves Emrex client\nand arrives at Emrex data provider
+
+== 3. Login and Select Results ==
+student -> emp: Logs in with Emrex data provider
+emp -> emp: Verifies student identity
+emp -> student: Shows available results\n(courses, grades, diplomas)
+student -> emp: Selects results to transfer\n+ gives consent
+emp -> emp: Stores selection temporarily
+
+== 4. Return to Emrex client ==
+emp -> emc: Redirects student back with\ntemporary access code (valid for 5 minutes)
+note left: Access code is short-lived and strictly\nscoped to selected results only
+
+== 5. Fetch and Save Results ==
+emc -> emp: Requests results using\naccess code (automatically)
+emp --> emc: Sends signed results in selected formats:\n- ELMO XML (optional)\n- ELM JSON (optional)\n- PDF + Metadata (optional)\n- UserInfo (ELMO Learner)\n- EIDAS UserInfo (optional)
+note right: Each response is signed so the EMC can verify its authenticity
+emc -> emc: Verifies X-Signature with EMP public key\nand saves results to student record
+emc -> student: Shows confirmation:\n"Results received successfully!"
+
+@enduml

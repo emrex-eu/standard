@@ -1,303 +1,487 @@
-# EMREX 2.0 - OAuth2 iGov Compliant Flow
+# EMREX 2.0 Protocol: Technical Specification
 
 ## Table of Contents
 
 1. [Introduction](#introduction)
 2. [Architecture](#architecture)
-3. [Technical Flow](#technical-flow)
+3. [Protocol Flow](#protocol-flow)
     - [1. Institution Selection](#1-institution-selection)
-    - [2. Authorization Request](#2-authorization-request)
-    - [3. Client Verification](#3-client-verification)
+    - [2. Authorization Request with PKCE (RFC 7636)](#2-authorization-request-with-pkce-rfc-7636)
+    - [3. Client Verification (RFC 7523)](#3-client-verification-rfc-7523)
     - [4. User Authentication & Consent](#4-user-authentication--consent)
-    - [5. Token Exchange](#5-token-exchange)
-    - [6. Data Retrieval](#6-data-retrieval)
-4. [Security Features](#security-features)
+    - [5. Token Exchange (RFC 6749)](#5-token-exchange-rfc-6749)
+    - [6. Data Retrieval with Signed Responses](#6-data-retrieval-with-signed-responses)
+4. [Security Mechanisms](#security-mechanisms)
 5. [Data Formats](#data-formats)
-6. [Implementation Details](#implementation-details)
-7. [Compliance](#compliance)
-8. [Migration from EMREX 1.0](#migration-from-emrex-10)
-9. [Testing](#testing)
+6. [Endpoints](#endpoints)
+7. [Error Handling](#error-handling)
+8. [Compliance](#compliance)
+9. [Migration from EMREX 1.0](#migration-from-emrex-10)
+10. [Testing and Demo](#testing-and-demo)
 
 ---
 
 ## Introduction
 
-EMREX 2.0 implements the **OAuth2 Authorization Code Flow with PKCE** as defined in the iGov specifications for secure
-exchange of educational results between institutions.
+EMREX 2.0 is a **secure, OAuth2-based protocol** for exchanging educational results (e.g., grades, diplomas) between
+institutions. It replaces the legacy EMREX 1.0 POST/POST flow with a **modern Authorization Code Flow + PKCE**,
+ensuring:
 
-Key features:
+- **End-to-end security** (RFC 6749, RFC 7636, RFC 7523).
+- **Data integrity** via signed responses (RFC 7515).
+- **GDPR compliance** through granular consent.
+- **Interoperability** via standardized data formats (ELMO XML/JSON, PDF).
 
-- OAuth2 Authorization Code Flow with PKCE (RFC 7636)
-- JWT-based client authentication (RFC 7523)
-- Signed responses for all data exchanges
-- Standardized data formats (ELMO XML, ELM JSON, PDF)
-- Granular user consent management
+### Key Components
+
+| Component   | Role                                                       | Standards Used                     |
+|-------------|------------------------------------------------------------|------------------------------------|
+| **EMC**     | EMREX Client (home institution). Initiates the flow.       | OAuth2, PKCE, JWT                  |
+| **EMP**     | EMREX Provider (host institution). Hosts the results.      | OAuth2, JWT, RFC 7515 (signatures) |
+| **EMREG**   | Central registry. Stores EMP/EMC metadata and public keys. | JSON, HTTPS                        |
+| **Student** | End-user. Selects results and grants consent.              | OAuth2 Redirect Flow               |
 
 ---
 
 ## Architecture
 
-### Components
+EMREX 2.0 follows a **decentralized architecture** with three core components:
 
-### 1. EMC (EMREX Client)
+1. **EMC (EMREX Client)**
+    - **Frontend**: UI for institution selection and result review.
+    - **Backend**: Handles OAuth2 flow, token exchange, and signature verification.
+    - **New in 2.0**:
+        - PKCE (RFC 7636) for code interception protection.
+        - JWT client authentication (RFC 7523) instead of shared secrets.
+        - Signature verification for responses.
 
-- Frontend: Institution selection UI
-- Backend: OAuth2 flow handler
-- New features:
-    - PKCE implementation (iGov 5.2)
-    - JWT generation for client authentication (RFC 7523)
-    - Response signature verification
+2. **EMP (EMREX Provider)**
+    - **Frontend**: Student login and result selection UI.
+    - **Backend**: OAuth2 Authorization Server + Resource Server.
+    - **Resource Server**: Provides signed results in multiple formats.
+    - **New in 2.0**:
+        - Dynamic client registration via EMREG.
+        - Signed responses (RFC 7515) for all data exchanges.
 
-### 2. EMP (EMREX Provider)
-
-- Frontend: Authentication and result selection interface
-- Backend: OAuth2 Authorization Server
-- Resource Server: Provides signed educational data
-- New features:
-    - JWT validation for client authentication
-    - Signed response generation (iGov 8.2)
-
-### 3. EMREG (Registry)
-
-- Central metadata repository
-- Public key distribution for JWT validation
-- OAuth2 configuration endpoints
+3. **EMREG (Registry)**
+    - Central directory for:
+        - EMP/EMC metadata (e.g., `redirect_uris`, public keys).
+        - Supported data formats and endpoints.
+    - **Accessible via REST API** (JSON responses).
 
 ---
 
-## Technical Flow
+## Protocol Flow
 
 ### 1. Institution Selection
 
-**Sequence:**
+**Purpose**: Student selects the host institution (EMP) from a list.
 
-1. Student initiates transfer in EMC
-2. EMC requests available EMPs from EMREG
-3. EMREG returns EMP metadata (iGov 4.1.1)
-4. EMC displays selection to student
+#### Sequence:
 
-### 2. Authorization Request
+1. Student logs into **EMC Frontend**.
+2. **EMC Backend** fetches available EMPs from **EMREG**:
+   ```http
+   GET /emp-list HTTP/1.1
+   Host: emreg.eu
+   Authorization: Bearer <EMC_API_TOKEN>
+   ```
+3. **EMREG** responds with a list of EMPs (JSON):
+   ```json
+   {
+     "emp_list": [
+       {
+         "acronym": "DUO-NL",
+         "country": "NL",
+         "institutions": ["University of Amsterdam", "TU Delft"],
+         "authorization_url": "https://emp.nl/oauth2/authorize",
+         "token_url": "https://emp.nl/oauth2/token",
+         "public_key": "-----BEGIN PUBLIC KEY-----..."
+       }
+     ]
+   }
+   ```
+4. **EMC Frontend** displays the list; student selects an EMP.
 
-**Required Parameters:**
+#### Standards:
 
-| Parameter             | Example Value                                          | Purpose                                          | iGov Ref. |
-|-----------------------|--------------------------------------------------------|--------------------------------------------------|-----------|
-| response_type         | code                                                   | Authorization code flow                          | 5.1       |
-| client_id             | emc-nl-university1                                     | EMC client identifier                            | 5.1.1     |
-| redirect_uri          | https://emc.university.nl/callback                     | EMC callback URL                                 | 5.1.2     |
-| ~~scope~~             | ~~elmo~~                                               | ~~Requested scope~~                              | ~~5.1.3~~ |
-| state                 | xYz123abc456def789                                     | CSRF protection                                  | 5.1.4     |
-| code_challenge        | E9Melv6jU2FjOq4A2TesOYsX9jpwcKQV86Z5HnXKhtI            | PKCE challenge                                   | 5.2       |
-| code_challenge_method | S256                                                   | PKCE method                                      | 5.2       |
-| client_assertion_type | urn:ietf:params:oauth:client-assertion-type:jwt-bearer | JWT assertion type                               | 5.5       |
-| client_assertion      | [JWT]                                                  | Signed JWT assertion: DPoP (Proof-of-Possession) | 5.6.2     |
+- **RFC 8259**: JSON format for EMP metadata.
+- **HTTPS**: Mandatory for all EMREG communications.
 
-**PKCE Preparation (iGov 5.2):**
+---
 
-```
-code_verifier = BASE64URL(SHA256(random(32)))
-code_challenge = BASE64URL(SHA256(code_verifier))
-```
+### 2. Authorization Request with PKCE (RFC 7636)
 
-**JWT Assertion Structure (RFC 7523):**
+**Purpose**: Initiate a secure OAuth2 flow with PKCE to prevent code interception.
 
-```json
-{
-  "alg": "RS256",
-  "typ": "JWT",
-  "kid": "EMC_KEY_ID"
-}
-```
+#### Sequence:
 
-```json
-{
-  "iss": "EMC_CLIENT_ID",
-  "sub": "EMC_CLIENT_ID",
-  "aud": "EMP_TOKEN_URL",
-  "jti": "unique-id-123",
-  "iat": 1672531200,
-  "exp": 1672531500,
-  "nbf": 1672531200
-}
-```
+1. **EMC Backend** generates a **PKCE code verifier** and **challenge**:
+   ```java
+   code_verifier = BASE64URL(SHA256(random(32)));  // RFC 7636
+   code_challenge = BASE64URL(SHA256(code_verifier));
+   ```
+    - `code_verifier` is stored in the session.
+    - `code_challenge` is sent to the EMP.
 
-### 3. Client Verification
+2. **EMC Backend** prepares the authorization URL with:
+    - OAuth2 parameters (RFC 6749):
+        - `response_type=code`
+        - `client_id` (e.g., `emc-nl-uva`).
+        - `redirect_uri` (must match EMREG registration).
+        - `state` (CSRF protection).
+    - PKCE parameters (RFC 7636):
+        - `code_challenge` (SHA-256).
+        - `code_challenge_method=S256`.
 
-**Validation Steps:**
+3. **EMC Frontend** redirects the student to the **EMP Authorization Endpoint**:
+   ```http
+   HTTP/1.1 302 Found
+   Location: https://emp.nl/oauth2/authorize?
+     response_type=code &
+     client_id=emc-nl-uva &
+     redirect_uri=https%3A%2F%2Femc.uva.nl%2Fcallback &
+     state=xYz123abc456def789 &
+     code_challenge=E9Melv6jU2FjOq4A2TesOYsX9jpwcKQV86Z5HnXKhtI &
+     code_challenge_method=S256
+   ```
 
-1. EMP fetches client metadata from EMREG
-2. Verifies JWT signature with EMC public key
-3. Validates JWT claims:
-    - iss matches client_id
-    - aud matches token endpoint
-    - exp/nbf valid
-    - jti is unique
+#### Standards:
+
+- **RFC 6749**: OAuth2 Authorization Code Flow.
+- **RFC 7636**: PKCE for public clients.
+- **RFC 6750**: `state` parameter for CSRF protection.
+
+---
+
+### 3. Client Verification (RFC 7523)
+
+**Purpose**: Verify the EMC’s identity using JWT assertions.
+
+#### Sequence:
+
+1. **EMP Backend** fetches the **EMC’s metadata** from **EMREG**:
+   ```http
+   GET /clients/emc-nl-uva HTTP/1.1
+   Host: emreg.eu
+   Authorization: Bearer <EMP_API_TOKEN>
+   ```
+2. **EMREG** responds with:
+    - EMC’s **public key** (for JWT validation).
+    - Registered `redirect_uris`.
+      Example:
+   ```json
+   {
+     "client_id": "emc-nl-uva",
+     "redirect_uris": ["https://emc.uva.nl/callback"],
+     "public_key": "-----BEGIN PUBLIC KEY-----..."
+   }
+   ```
+3. **EMP Backend** validates:
+    - The `redirect_uri` matches the registered URI.
+    - The EMC’s identity via `client_id`.
+
+#### Standards:
+
+- **RFC 7523**: JWT-based client authentication.
+- **RFC 7515**: JWT signature validation.
+
+---
 
 ### 4. User Authentication & Consent
 
-**Process:**
+**Purpose**: Authenticate the student and obtain explicit consent for data sharing.
 
-1. Student authenticates at EMP
-2. EMP validates user credentials
-3. EMP retrieves student results
-4. Student selects results for transfer
-5. EMP stores selection with reference ID
-6. EMP generates authorization code bound to selection (iGov 6.2)
+#### Sequence:
 
-### 5. Token Exchange
-
-**Token Request:**
-
-```
-POST /token HTTP/1.1
-Host: emp.sweden.edu
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code
-&code=AUTH_CODE_123
-&redirect_uri=https%3A%2F%2Femc.university.nl%2Fcallback ?
-&client_id=emc-nl-university1 ?
-&code_verifier=CODE_VERIFIER
-&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
-&client_assertion=NEW_JWT
-```
-
-**Token Response:**
-
-```
-{
-"access_token": "ACCESS_TOKEN_456",
-"token_type": "Bearer",
-"expires_in": 60
-}
-```
-
-### 6. Data Retrieval
-
-**Available Endpoints:**
-
-| Endpoint        | Content Type              | Response Headers                      |
-|-----------------|---------------------------|---------------------------------------|
-| /results        | emrex/elmo                | X-Signature, X-Certificate-Thumbprint |
-| /results        | emrex/PDF                 | X-Signature, X-Certificate-Thumbprint |
-| /results        | emrex/elm                 | X-Signature, X-Certificate-Thumbprint |
-| /identification | emrex/user_identification | X-Signature, X-Certificate-Thumbprint |
-
-**Response Headers:**
-
-```
-X-Signature: [base64-encoded signature]
-X-Signature-Algorithm: RS256
-X-Request-ID: [unique request identifier]
-```
+1. **EMP Frontend** prompts the student to log in (e.g., SAML, local credentials).
+2. After authentication, **EMP Backend** retrieves the student’s results.
+3. **EMP Frontend** displays results for selection (e.g., courses, grades).
+4. Student selects results and grants consent.
+5. **EMP Backend** stores the selection with a **reference ID** (`ref_id`):
+   ```json
+   {
+     "ref_id": "a1b2c3d4-5678-90ef-ghij-klmnopqrstuv",
+     "student_id": "s123456",
+     "selected_results": ["course1", "course2"],
+     "consent_granted": true,
+     "consent_timestamp": "2026-02-18T12:00:00Z"
+   }
+   ```
+6. **EMP Backend** generates an **authorization code** bound to:
+    - `ref_id`, `client_id`, `redirect_uri`, and `code_challenge`.
+7. **EMP Frontend** redirects the student back to the **EMC** with the code:
+   ```http
+   HTTP/1.1 302 Found
+   Location: https://emc.uva.nl/callback?
+     code=AUTH_CODE_123 &
+     state=xYz123abc456def789
+   ```
 
 ---
 
-## Security Features
+### 5. Token Exchange (RFC 6749)
 
-### Authentication & Authorization
+**Purpose**: Exchange the authorization code for an access token using JWT client authentication.
 
-- **PKCE**: Protection against code interception (RFC 7636)
-- **JWT Assertions**: Signed client authentication (RFC 7523)
-- **State Parameters**: CSRF protection
-- **Short-lived Tokens**: Default 1-minute expiration
+#### Sequence:
 
-### Data Integrity
+1. **EMC Backend** validates the callback (`state`, `code`).
+2. Generates a **signed JWT** (RFC 7523) for client authentication:
+    - **Header**:
+      ```json
+      {
+        "alg": "RS256",
+        "typ": "JWT",
+        "kid": "emc-key-1"
+      }
+      ```
+    - **Payload**:
+      ```json
+      {
+        "iss": "emc-nl-uva",
+        "sub": "emc-nl-uva",
+        "aud": "https://emp.nl/oauth2/token",
+        "jti": "unique-id-123",
+        "iat": 1672531200,
+        "exp": 1672531500,
+        "nbf": 1672531200
+      }
+      ```
+3. Sends a **token request** to the **EMP Token Endpoint**:
+   ```http
+   POST /oauth2/token HTTP/1.1
+   Host: emp.nl
+   Content-Type: application/x-www-form-urlencoded
 
-- All responses signed with EMP private key
-- Token binding to specific results
-- Certificate thumbprint in headers for validation ?
+   grant_type=authorization_code &
+   code=AUTH_CODE_123 &
+   redirect_uri=https%3A%2F%2Femc.uva.nl%2Fcallback &
+   code_verifier=CODE_VERIFIER &
+   client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer &
+   client_assertion=SIGNED_JWT
+   ```
+4. **EMP Backend**:
+    - Validates the JWT signature (using EMC’s public key from EMREG).
+    - Validates `code_verifier` against `code_challenge` (PKCE).
+    - Returns an **access token** (short-lived, ≤10 minutes):
+      ```json
+      {
+        "access_token": "ACCESS_TOKEN_456",
+        "token_type": "Bearer",
+        "expires_in": 300,
+        "scope": "elmo userinfo"
+      }
+      ```
 
-### Validation Rules
+#### Standards:
 
-1. All required OAuth2 parameters must be present
-2. JWT must be correctly signed with EMC private key
-3. redirect_uri must exactly match registered URI
-4. code_challenge must be correctly generated (S256)
-5. State must be unique per request
-6. Tokens must be validated before use
+- **RFC 6749**: OAuth2 Token Exchange.
+- **RFC 7523**: JWT client authentication.
+- **RFC 7636**: PKCE validation.
 
 ---
 
-## Data Formats
+### 6. Data Retrieval with Signed Responses
+
+**Purpose**: Fetch results in a secure, signed format.
+
+#### Sequence:
+
+1. **EMC Backend** requests data using the `access_token`:
+   ```http
+   GET /results?data_format=elmo&data_format_version=2.1 HTTP/1.1
+   Host: emp.nl
+   Authorization: Bearer ACCESS_TOKEN_456
+   X-Request-ID: req-12345
+   ```
+    - Supported `data_format` values:
+      | Format | Content-Type | Description |
+      |----------------------|--------------------|----------------------------------------------|
+      | `elmo`               | `application/xml`  | ELMO XML (default, based on EN 15981/15982). |
+      | `elm`                | `application/json` | JSON alternative to ELMO. |
+      | `userinfo`           | `application/xml`  | Student identification (ELMO Learner). |
+      | `eidas`              | `application/json` | eIDAS-compliant user info. |
+      | `pdf_metadata`       | `application/json` | List of available PDFs (e.g., diplomas). |
+      | `pdf`                | `application/pdf`  | PDF document (requires `pdf_id`). |
+
+2. **EMP Resource Server**:
+    - Validates the `access_token` (scope, expiration, `ref_id` binding).
+    - Signs the response with its private key:
+      ```http
+      HTTP/1.1 200 OK
+      Content-Type: application/xml
+      X-Signature: EMP_SIGNATURE_ABC123
+      X-Signature-Algorithm: RS256
+      X-Request-ID: req-12345
+ 
+      <elmo>
+        <learner>
+          <id>s123456</id>
+          <name>Jane Doe</name>
+        </learner>
+        ...
+      </elmo>
+      ```
+    - Returns `HTTP 204 No Content` if no results are available.
+
+3. **EMC Backend**:
+    - Verifies the `X-Signature` using the EMP’s public key (from EMREG).
+    - Stores the results and notifies the student.
+
+#### Standards:
+
+- **RFC 7515**: JSON Web Signature (JWS) for response signing.
+- **EN 15981/15982**: ELMO XML format.
+
+---
+
+## Security Mechanisms
+
+| **Mechanism**                  | **Purpose**                                                       | **Standard**  |
+|--------------------------------|-------------------------------------------------------------------|---------------|
+| OAuth2 Authorization Code Flow | Prevents token exposure in the frontend.                          | RFC 6749      |
+| PKCE                           | Mitigates authorization code interception (RFC 7636 §4.6).        | RFC 7636      |
+| JWT Client Authentication      | Secures server-to-server communication (replaces client secrets). | RFC 7523      |
+| Short-lived Tokens             | Access tokens expire in ≤10 minutes.                              | RFC 6749 §5.1 |
+| Signed Responses               | Ensures data integrity and authenticity (RFC 7515 §3).            | RFC 7515      |
+| CSRF Protection (`state`)      | Prevents cross-site request forgery (RFC 6749 §10.12).            | RFC 6749      |
+| EMREG Validation               | EMP verifies EMC’s `redirect_uri` and public key.                 | HTTPS + JSON  |
+| Granular Consent               | Student selects specific results to share (GDPR compliance).      | GDPR Art. 6   |
+
+---
+
+## Example Data Formats
 
 ### ELMO XML
 
-```xml
+- **Schema**: [ELMO XSD (v2.1.2)](https://github.com/emrex-eu/elmo-schemas/tree/v2.1.2)
+- **Description**: XML format based on **EN 15981/15982** for educational records (e.g., courses, grades, diplomas).
+  ```
 
-<elmo>
-    <learner>
-        <id>student123</id>
-        <name>John Doe</name>
-    </learner>
-    <issuer>
-        <name>University of Sweden</name>
-    </issuer>
-    <results>
-        <!-- Educational results data -->
-    </results>
-</elmo>
-```
+### ELM
 
-### ELM JSON
+- **Schemas**: [ELM Schemas ](https://github.com/european-commission-empl/European-Learning-Model)
+- **Description**: The European Learning Model (ELM) is a Data Model for Interoperability of Learning Opportunities,
+  Qualifications, Accreditation and Credentials in Europe, developed by the European Commission.
 
-```json
-{
-  "learner": {
-    "id": "student123",
-    "name": "John Doe"
-  },
-  "issuer": {
-    "name": "University of Sweden"
-  },
-  "results": [
-  ]
-}
-```
+### PDF Metadata
+
+- **Schemas**: TBD
+- **Description**: JSON list of available PDF documents (e.g., diplomas, transcripts) with metadata such as title, issue
+  date, type, size, and checksum.
+- **Example**:
+  ```json
+  {
+    "pdf_list": [
+      {
+        "pdf_id": "123-456-789",
+        "title": "Bachelor's Diploma in Computer Science",
+        "issue_date": "2023-07-15",
+        "type": "diploma",
+        "size_bytes": 102400,
+        "checksum": "sha256:abc123..."
+      }
+    ]
+  }
+  ```
+
+### PDF Document
+
+- **Description**: Binary PDF file (e.g., diploma, transcript) with a detached signature in the `X-Signature` header.
+- **Headers**:
+  | Header | Value Example | Description |
+  |-------------------|-----------------------------------|--------------------------------------|
+  | `Content-Type`    | `application/pdf`                 | MIME type. |
+  | `X-Signature`     | `EMP_SIGNATURE_ABC123`            | Base64-encoded signature (RFC 7515). |
+  | `X-Signature-Alg` | `RS256`                           | Signature algorithm. |
+- **Example Request**:
+  ```http
+  GET /results?data_format=pdf&pdf_id=123-456-789 HTTP/1.1
+  Host: emp.com
+  Authorization: Bearer ACCESS_TOKEN_456
+  ```
+
+### Userinfo
+
+- **Description**: XML format based on **ELMO Learner** for student identification.
+- **Schema**: [ELMO Learner XSD](https://github.com/emrex-eu/elmo-schemas/tree/v2.1.2)
+- **Example**:
+  ```xml
+  <learner>
+    <person>
+      <family_name>Doe</family_name>
+      <given_name>John</given_name>
+      <birthdate>2000-01-01</birthdate>
+    </person>
+  </learner>
+  ```
+
+### EIDAS UserInfo
+
+- **Description**: JSON format compliant with **eIDAS Regulation** for electronic identification, including attributes
+  such as `sub`, `family_name`, `given_name`, `birthdate`, and eIDAS-specific metadata.
+- **Schema**: [eIDAS Attributes](https://ec.europa.eu/digital-building-blocks/wikis/display/DIGITAL/eIDAS+Attributes)
+- **Example**:
+  ```json
+  {
+    "sub": "eu.eidas.naturalperson.123456789",
+    "family_name": "Doe",
+    "given_name": "Jane",
+    "birthdate": "1995-05-15",
+    "person_identifier": "NL/BSN/123456789",
+    "eidas": {
+      "level_of_assurance": "substantial",
+      "issuer": "https://eidas.nl/identity-provider"
+    }
+  }
+  ```
 
 ---
 
-## Implementation Details
+## Endpoints
 
-### JWT Claims Requirements
+| **Component**       | **Endpoint**           | **Method** | **Description**                           | **Authentication**          |
+|---------------------|------------------------|------------|-------------------------------------------|-----------------------------|
+| EMREG               | `/emp-list`            | GET        | List of available EMPs.                   | Bearer Token (EMC)          |
+| EMREG               | `/clients/{client_id}` | GET        | EMC metadata (public key, redirect URIs). | Bearer Token (EMP)          |
+| EMP                 | `/oauth2/authorize`    | GET        | Authorization endpoint (OAuth2).          | None (user login required)  |
+| EMP                 | `/oauth2/token`        | POST       | Token endpoint (OAuth2).                  | JWT Assertion (RFC 7523)    |
+| EMP Resource Server | `/results`             | GET        | Fetch results in selected format.         | Bearer Token (access_token) |
 
-```json
-{
-  "iss": "EMC_CLIENT_ID",
-  "sub": "EMC_CLIENT_ID",
-  "aud": "EMP_TOKEN_URL",
-  "jti": "unique-id-123",
-  "iat": 1672531200,
-  "exp": 1672531500,
-  "nbf": 1672531200
-}
-```
+---
 
-### Authorization Code Generation
+## Error Handling
 
-- Code is bound to:
-    - Selected results (reference ID)
-    - Client ID
-    - Redirect URI
-    - Code verifier (for PKCE validation)
+| **Scenario**                      | **HTTP Status** | **Response Body**                                                                 | **Recovery**                             |
+|-----------------------------------|-----------------|-----------------------------------------------------------------------------------|------------------------------------------|
+| Invalid `client_id`               | 400             | `{"error": "invalid_client"}`                                                     | Register EMC in EMREG.                   |
+| Mismatched `redirect_uri`         | 400             | `{"error": "invalid_request", "error_description": "redirect_uri mismatch"}`      | Update `redirect_uri` in EMREG.          |
+| Expired `code`                    | 400             | `{"error": "invalid_grant", "error_description": "code expired"}`                 | Restart the flow.                        |
+| Invalid `code_verifier` (PKCE)    | 400             | `{"error": "invalid_grant", "error_description": "PKCE verification failed"}`     | Restart the flow.                        |
+| Invalid JWT signature             | 401             | `{"error": "invalid_client", "error_description": "JWT signature invalid"}`       | Regenerate JWT with correct private key. |
+| Unsupported `data_format/version` | 400             | `{"error": "invalid_request", "error_description": "unsupported format/version"}` | See Emreg for EMP supported data formats |
+| No results available              | 204             | (Empty body)                                                                      | Notify the student.                      |
+| Token expired                     | 401             | `{"error": "invalid_token", "error_description": "token expired"}`                | Request a new token.                     |
+| Signature verification failed     | 403             | `{"error": "invalid_signature"}`                                                  | Verify EMP’s public key in EMREG.        |
 
 ---
 
 ## Compliance
 
-EMREX 2.0 implements the following standards and specifications:
+EMREX 2.0 complies with the following standards:
 
-| Standard          | Implementation Details           |
-|-------------------|----------------------------------|
-| RFC 6749 (OAuth2) | Authorization Code Flow          |
-| RFC 7636          | PKCE implementation              |
-| RFC 7523          | JWT client authentication        |
-| iGov 4.1.1        | EMP metadata format              |
-| iGov 5.1-5.7      | Authorization request parameters |
-| iGov 5.2          | PKCE implementation              |
-| iGov 5.5-5.6      | JWT client authentication        |
-| iGov 6.1-6.3      | User authentication and consent  |
-| iGov 7.1-7.3      | Token exchange flow              |
-| iGov 8.1-8.2      | Signed response requirements     |
+| **Category**         | **Standard**      | **Implementation Details**                                             |
+|----------------------|-------------------|------------------------------------------------------------------------|
+| **Authentication**   | RFC 6749 (OAuth2) | Authorization Code Flow + PKCE.                                        |
+|                      | RFC 7523 (JWT)    | JWT client authentication (RS256).                                     |
+| **Security**         | RFC 7636 (PKCE)   | `code_challenge` with `S256`.                                          |
+|                      | RFC 7515 (JWS)    | Signed responses (RS256).                                              |
+|                      | RFC 6749 §10.12   | CSRF protection via `state` parameter.                                 |
+| **Data Formats**     | EN 15981/15982    | ELMO XML format.                                                       |
+|                      | RFC 8259 (JSON)   | ELM JSON and metadata responses.                                       |
+| **Privacy**          | GDPR Article 6    | Granular consent + explicit user approval.                             |
+| **Interoperability** | HTTPS (RFC 2818)  | Mandatory for all communications.                                      |
+| **eIDAS**            | eIDAS Regulation  | Support for eIDAS-compliant user identification (`data_format=eidas`). |
 
 ---
