@@ -1,7 +1,7 @@
-@startuml EMREX_iGov_Compliant_Flow_ServerSide
+@startuml EMREX_2.0_Flow_ServerSide
 autonumber "<b>[000]"
 
-title **EMREX Flow - OpenID iGov Compliant (Server-Side Auth Request, No External Browser)**
+title **EMREX Flow**
 
 skinparam monochrome false
 skinparam defaultFontName Arial
@@ -25,47 +25,44 @@ emc_fe -> emc_fe: Select EMP
 == 2. Authorization Request Preparation ==
 emc_fe -> emc_bff: Prepare auth request for selected EMP
 
-group **PKCE + JWT Preparation**
+group **PKCE preparation**
   emc_bff -> emc_bff: **PKCE RFC 7636**\ncode_verifier = BASE64URL(SHA256(random(32)))\ncode_challenge = BASE64URL(SHA256(code_verifier))
-  emc_bff -> emc_bff: **JWT Client Authentication params RFC 7523**\nGenerate signed JWT with:\n- Header: alg=RS256, typ=JWT, kid=EMC_KEY_ID\n- Payload: iss=EMC_CLIENT_ID, sub=EMC_CLIENT_ID, aud=EMP_TOKEN_URL,\n jti=UUID(), iat=current_timestamp, exp=iat+300, nbf=iat, azp=EMC_CLIENT_ID
   emc_bff -> emc_bff: Store code_verifier + state in session\n(linked to EMC session)
 end group
 
 emc_bff --> emc_fe: Authorization URL parameters
-emc_fe -> emp_bff: HTTP 302 Redirect to EMP with url-params:\n**Oauth2 params RFC 6749**\nclient_id=EMC_CLIENT_ID\nredirect_uri=EMC_REDIRECT_URI\nresponse_type=code\nstate=CSRF_TOKEN\n**PKCE params RFC 7636**\ncode_challenge=CODE_CHALLENGE\ncode_challenge_method=S256\n**JWT Client Authentication params RFC 7523**\nclient_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer\nclient_assertion=JWT
+emc_fe -> emp_bff: HTTP 302 Redirect to EMP with url-params:\n**Oauth2 params RFC 6749**\nclient_id=EMC_CLIENT_ID\nredirect_uri=EMC_REDIRECT_URI\nresponse_type=code\nstate=CSRF_TOKEN\n**PKCE params RFC 7636**\ncode_challenge=CODE_CHALLENGE\ncode_challenge_method=S256
 
 == 3. EMP Client Verification and result selection ==
 emp_bff -> emreg: GET /clients/EMC_CLIENT_ID\nAuthorization: Bearer EMP_API_TOKEN -> **Details to be decided**
 emreg --> emp_bff: Client metadata with EMREG_EMC_PUBLIC_KEY and EMREG_EMC_REDIRECT_URI
 
-group **JWT Validation and EMREG_EMC_REDIRECT_URI**
-  emp_bff -> emp_bff: Verify signature with EMREG_EMC_PUBLIC_KEY
-  emp_bff -> emp_bff: Validate claims:\n- iss == EMREX_EMC_CLIENT_ID\n- aud == EMP_TOKEN_URL\n- exp > current time\n- nbf <= current time\n- azp == EMREX_EMC_CLIENT_ID
+group **Validation EMREG_EMC_REDIRECT_URI**
   emp_bff -> emp_bff: Validate EMC_REDIRECT_URI against EMREG_EMC_REDIRECT_URI
 end group
 
-alt Validations pass
-    emp_bff -> emp_fe: HTTP 302 Redirect to EMP (login)
-    emp_fe -> emp_fe: User logs in at EMP
-    emp_fe -> emp_bff: Get results
-    emp_bff --> emp_fe: Results for selection
-    emp_fe -> emp_fe: Show results selection UI
+group **Do Emrex stuf**
+  emp_bff -> emp_fe: HTTP 302 Redirect to EMP (login)
+  emp_fe -> emp_fe: User logs in at EMP
+  emp_fe -> emp_bff: Get results
+  emp_bff --> emp_fe: Results for selection
+  emp_fe -> emp_fe: Show results selection UI
 
-    emp_fe -> emp_fe: User selects results + consent
-    emp_fe -> emp_bff: Store user selection and user info and consent (ref_id=UUID(), selected_results=[...])
-    emp_bff -> emp_rs: Store user selection and user info (ref_id=UUID(), selected_results=[...])
-    emp_rs -> emp_bff: 
-    emp_bff -> emp_bff: Store user consent
+  emp_fe -> emp_fe: User selects results + consent
+  emp_fe -> emp_bff: Store user selection and user info and consent (ref_id=UUID(), selected_results=[...])
+  emp_bff -> emp_rs: Store user selection and user info (ref_id=UUID(), selected_results=[...])
+  emp_rs -> emp_bff:
+  emp_bff -> emp_bff: Store user consent
+end group
 
-    group **Authorization Code Generation**
-      emp_bff -> emp_bff: Generate auth code (code=AUTH_CODE_123)
-      emp_bff -> emp_bff: Bind code to:\n- ref_id:UUID()\n- selected_results:[...]\n- client_id:EMC_CLIENT_ID\n- redirect_uri:EMC_REDIRECT_URI
-    end group
-    emp_bff -> emc_fe: HTTP 302 Redirect to EMC_REDIRECT_URI\n**PKCE Params**\ncode=AUTH_CODE_123\nstate=CSRF_TOKEN
-    emc_fe -> emc_bff: Continue at 4: Callback Handling
-else Validations fail
-    emp_fe --> emc_fe: HTTP 302 Redirect to EMC_REDIRECT_URI with:\nerror=invalid_client\nerror_description=JWT+verification+failed\nstate=ORIGINAL_STATE (iGov 5.7)
-    emc_fe -> emc_bff: Handle error
+group **Authorization Code Generation**
+  emp_bff -> emp_bff: Generate auth code (code=AUTH_CODE_123)
+  emp_bff -> emp_bff: Bind code to:\n- ref_id:UUID()\n- selected_results:[...]\n- client_id:EMC_CLIENT_ID\n- redirect_uri:EMC_REDIRECT_URI
+end group
+
+emp_bff -> emc_fe: HTTP 302 Redirect to EMC_REDIRECT_URI\n**PKCE Params**\ncode=AUTH_CODE_123\nstate=CSRF_TOKEN
+emc_fe -> emc_bff: Continue at 4: Callback Handling
+
 
 == 4. Callback Handling (EMC Server) ==
 emc_bff -> emc_bff: Receive callback with auth code + state
@@ -82,40 +79,52 @@ emreg --> emp_bff: Client metadata with public key
 group **Token Validation and Access Token generation**
   emp_bff -> emp_bff: Verify JWT signature with EMC public key
   emp_bff -> emp_bff: Validate code_verifier against code_challenge
-  emp_bff -> emp_bff: Generate acces token:\n- access_token: ACCESS_TOKEN_456\n- id_token: ID_TOKEN_789\n- expires_in: 60\n -user_full_name\n -user_birthday\n- token_type: Bearer
+  emp_bff -> emp_bff: Generate acces token:\n- access_token: ACCESS_TOKEN_456\n- id_token: ID_TOKEN_789\n- expires_in: 120\n -user_identifcation: [Elmo Learner] Security issues? Leaking personal info from access token\n- token_type: Bearer
 end group
 
 emp_bff --> emc_bff: Access token
 
 == 6. Data Retrieval with Signed Responses ==
-group **ELMO XML (iGov 8.1)**
-  emc_bff -> emp_rs: GET /results?data_format=elmo\nAuthorization: Bearer ACCESS_TOKEN_456\nX-Request-ID: REQ_12345
+group **ELMO XML**
+  emc_bff -> emp_rs: GET /results?data_format=elmo&data_format_version=XX\ndata_format_version is optional. No param means you get latest version\nBad request (40X) when combination is not supported by EMP\nAuthorization: Bearer ACCESS_TOKEN_456\nX-Request-ID: REQ_12345
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: Signed ELMO XML\nX-Signature: EMP_SIGNATURE_ABC123\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: Signed ELMO XML\nX-Signature: EMP_SIGNATURE_ABC123\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))
 end group
 
-group **User Info [Optional] **
-  emc_bff -> emp_rs: GET /results?data_format=userinfo\nAuthorization: Bearer ACCESS_TOKEN_456
+group **User Info Elmo learner **
+  emc_bff -> emp_rs: GET /results?data_format=userinfo&data_format_version=XX\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: Application/xml?\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))
 end group
 
 group **EIDAS User Info [Optional]**
   emc_bff -> emp_rs: GET /results?data_format=eidas\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: application/json\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))
+end group
+
+group **PDF Meta data [Optional]**
+  emc_bff -> emp_rs: GET /results?data_format=pdf_metadata\nAuthorization: Bearer ACCESS_TOKEN_456
+  emp_rs -> emp_rs: Sign response with EMP private key
+  emp_rs --> emc_bff: application/json\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))\n Return list of PDF id's
 end group
 
 group **PDF Document [Optional]**
-  emc_bff -> emp_rs: GET /results?data_format=pdf\nAuthorization: Bearer ACCESS_TOKEN_456
+  emc_bff -> emp_rs: GET /results?data_format=pdf&pdf_id={pdf_id}\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: PDF document\nX-Signature: EMP_SIGNATURE_DEF456\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))\n
 end group
 
 group **ELM JSON [Optional]**
-  emc_bff -> emp_rs: GET /results?data_format=elm\nAuthorization: Bearer ACCESS_TOKEN_456
+  emc_bff -> emp_rs: GET /results?data_format=elm&data_format_version=XX\nAuthorization: Bearer ACCESS_TOKEN_456
   emp_rs -> emp_rs: Sign response with EMP private key
-  emp_rs --> emc_bff: ELM JSON\nX-Signature: EMP_SIGNATURE_GHI789\nX-Signature-Algorithm: RS256
+  emp_rs --> emc_bff: ELM JSON\nX-Signature: EMP_SIGNATURE_GHI789\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))
+end group
+
+group **Revocation [Optional] <Think about>**
+  emc_bff -> emp_rs: GET /results?data_format=revocations\nAuthorization: Bearer ACCESS_TOKEN_456
+  emp_rs -> emp_rs: Sign response with EMP private key
+  emp_rs --> emc_bff: Revocation list\nX-Signature: EMP_SIGNATURE_GHI789\nX-Signature-Algorithm: RS256\n Empty results (204 (no content?))
 end group
 
 emc_bff -> emc_fe: Retrieved results
