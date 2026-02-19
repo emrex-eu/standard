@@ -18,23 +18,30 @@ emc -> student: Shows selection screen
 student -> emc: Selects Emrex data provider\n(e.g., "DUO")
 
 == 2. Secure Redirect to Emrex data provider ==
-emc -> emp: Redirects student with\nsecure link (OAuth2 + PKCE protected)
+emc -> emp: Redirects student with\nsecure link (GET) (OAuth2 + PKCE protected)
 note right: Student leaves Emrex client\nand arrives at Emrex data provider
 
 == 3. Login and Select Results ==
 student -> emp: Logs in with Emrex data provider
 emp -> emp: Verifies student identity
+emp -> emp: Verifies client identity using Emreg
 emp -> student: Shows available results\n(courses, grades, diplomas)
 student -> emp: Selects results to transfer\n+ gives consent
 emp -> emp: Stores selection temporarily
 
 == 4. Return to Emrex client ==
-emp -> emc: Redirects student back with\ntemporary access code (valid for 5 minutes)
-note left: Access code is short-lived and strictly\nscoped to selected results only
+emp -> emc: Redirects student back with\ntemporary auth code
 
-== 5. Fetch and Save Results ==
-emc -> emp: Requests results using\naccess code (automatically)
-emp --> emc: Sends signed results in selected formats:\n- ELMO XML (optional)\n- ELM JSON (optional)\n- PDF + Metadata (optional)\n- UserInfo (ELMO Learner)\n- EIDAS UserInfo (optional)
+== 5. Obtain Access token ==
+emc -> emp: Access token request
+emp -> emp: Validate token request
+emp -> emc: Grant access token (valid for 5 minutes)
+note left: Access token is short-lived and strictly\nscoped to selected results only
+
+
+== 6. Fetch and Save Results ==
+emc -> emp: Client decides which results to get using\naccess token
+emp --> emc: Sends signed results in selected formats:\nEamples:\n- ELMO XML \n- ELM JSON \n- PDF + Metadata\n- UserInfo (ELMO Learner)\n- EIDAS UserInfo
 note right: Each response is signed so the EMC can verify its authenticity
 emc -> emc: Verifies X-Signature with EMP public key\nand saves results to student record
 emc -> student: Shows confirmation:\n"Results received successfully!"

@@ -65,15 +65,16 @@ An **EMP** represents an institution or service that provides educational result
 
 #### `emreg2Props` Object
 
-| **Attribute**            | **Type**       | **Description**                                                      | **Required** | **Example**                           |
-|--------------------------|----------------|----------------------------------------------------------------------|--------------|---------------------------------------|
-| `supportedDataFormats`   | DataFormat[]   | List of supported data formats (e.g., ELMO XML, ELM JSON).           | Yes          |                                       |
-| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).           | No           |                                       |
-| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                            | Yes          | `https://emp.duo.nl/oauth2/authorize` |
-| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                    | Yes          | `https://emp.duo.nl/oauth2/token`     |
-| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                       | Yes          | `https://emp.duo.nl/results`          |
-| `requiredTrustLevel`     | String         | Minimum trust level required for EMCs (e.g., "substantial", "high"). | No           | `substantial`                         |
-| `pingUrl`                | URL            | Endpoint for health checks.                                          | No           | `https://emp.duo.nl/ping`             |
+| **Attribute**            | **Type**       | **Description**                                                          | **Required** | **Example**                                | Note                              | 
+|--------------------------|----------------|--------------------------------------------------------------------------|--------------|--------------------------------------------|-----------------------------------| 
+| `supportedDataFormats`   | DataFormat[]   | List of supported data formats (e.g., ELMO XML, ELM JSON).               | Yes          |                                            | @TODO: HOW TO MANAGE DATA FORMATS |
+| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).               | No           |                                            | @TODO: NEEDS DISCUSSION           |
+| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                                | Yes          | `https://emp.duo.nl/oauth2/authorize`      |                                   |
+| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                        | Yes          | `https://emp.duo.nl/oauth2/token`          |                                   |
+| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                           | Yes          | `https://emp.duo.nl/results`               |                                   |
+| `requiredTrustLevel`     | String         | Minimum trust level required for EMCs (e.g., "substantial", "high").     | No           | `substantial`                              | @TODO: NEEDS DISCUSSION           |
+| `extensionOpenapiSpec`   | URL            | Optional url to an openapi spec where EMP describes additional resources | No           | `https://emp.duo.nl/results/api-docs.yaml` |                                   |
+| `pingUrl`                | URL            | Endpoint for health checks.                                              | No           | `https://emp.duo.nl/ping`                  |                                   |
 
 #### Example EMP JSON
 
@@ -85,7 +86,6 @@ An **EMP** represents an institution or service that provides educational result
   "publicKey": "-----BEGIN PUBLIC KEY-----...",
   "emreg2Props": {
     "supportedDataFormats": [
-       
     ],
     "authorizationUrl": "https://emp.duo.nl/oauth2/authorize",
     "tokenUrl": "https://emp.duo.nl/oauth2/token",
@@ -111,6 +111,7 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 | `redirectUri` | URL             | OAuth2 redirect URI (must match exactly during validation).  | Yes          | `https://emc.uva.nl/callback`   |
 | `name`        | LocalizedString | Localized name of the EMC (supports multiple languages).     | Yes          | `{ "en": "UVA", "nl": "UvA" }`  |
 | `logo`        | URL             | URL to the EMC's logo.                                       | No           | `https://emc.uva.nl/logo.png`   |
+| `country`     | String          | Country where EMC is based (ISO Country code)                | Yes          | `NL`                            |
 | `trustLevel`  | String          | Trust level assigned by EMREG (e.g., "substantial", "high"). | Yes          | `substantial`                   |
 | `email`       | String          | Contact email for administrative purposes.                   | Yes          | `emrex@uva.nl`                  |
 | `website`     | URL             | Official website of the EMC.                                 | No           | `https://www.uva.nl`            |
@@ -283,12 +284,12 @@ Both flows use the **same data models** but differ in **approval requirements** 
 
 EMREG provides a **REST API** for programmatic access to registry data. The following endpoints are available:
 
-| **Endpoint**             | **Method** | **Description**                                                                    | **Authentication**       | **Example Request**          |
-|--------------------------|------------|------------------------------------------------------------------------------------|--------------------------|------------------------------|
-| `/emp-list`              | GET        | Returns a list of active EMPs.                                                     | None                     | `GET /emp-list`              |
-| `/emp/{empId}`           | GET        | Returns metadata for a specific EMP.                                               | None                     | `GET /emp/duo-nl`            |
-| `/clients/{clientId}`    | GET        | Returns metadata for a specific EMC.                                               | Bearer Token (EMP)       | `GET /clients/emc-nl-uva`    |
-| `/health`                | GET        | Health check endpoint.                                                             | None                     | `GET /health`                |
+| **Endpoint**          | **Method** | **Description**                      | **Authentication** | **Example Request**       |
+|-----------------------|------------|--------------------------------------|--------------------|---------------------------|
+| `/emp-list`           | GET        | Returns a list of active EMPs.       | None               | `GET /emp-list`           |
+| `/emp/{empId}`        | GET        | Returns metadata for a specific EMP. | None               | `GET /emp/duo-nl`         |
+| `/clients/{clientId}` | GET        | Returns metadata for a specific EMC. | Bearer Token (EMP) | `GET /clients/emc-nl-uva` |
+| `/health`             | GET        | Health check endpoint.               | None               | `GET /health`             |
 
 ---
 

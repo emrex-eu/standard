@@ -16,8 +16,7 @@
 6. [Endpoints](#endpoints)
 7. [Error Handling](#error-handling)
 8. [Compliance](#compliance)
-9. [Migration from EMREX 1.0](#migration-from-emrex-10)
-10. [Testing and Demo](#testing-and-demo)
+9. [Impact of Migration to EMREX 2.0 for EMPs and EMCs](#impact)
 
 ---
 
@@ -295,15 +294,17 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
    Authorization: Bearer ACCESS_TOKEN_456
    X-Request-ID: req-12345
    ```
-    - Supported `data_format` values:
-      | Format | Content-Type | Description |
-      |----------------------|--------------------|----------------------------------------------|
-      | `elmo`               | `application/xml`  | ELMO XML (default, based on EN 15981/15982). |
-      | `elm`                | `application/json` | JSON alternative to ELMO. |
-      | `userinfo`           | `application/xml`  | Student identification (ELMO Learner). |
-      | `eidas`              | `application/json` | eIDAS-compliant user info. |
-      | `pdf_metadata`       | `application/json` | List of available PDFs (e.g., diplomas). |
-      | `pdf`                | `application/pdf`  | PDF document (requires `pdf_id`). |
+
+Supported `data_format` values:
+
+| Format         | Content-Type       | Description                                  |
+|----------------|--------------------|----------------------------------------------|
+| `elmo`         | `application/xml`  | ELMO XML (default, based on EN 15981/15982). |
+| `elm`          | `application/json` | JSON alternative to ELMO.                    |
+| `userinfo`     | `application/xml`  | Student identification (ELMO Learner).       |
+| `eidas`        | `application/json` | eIDAS-compliant user info.                   |
+| `pdf_metadata` | `application/json` | List of available PDFs (e.g., diplomas).     |
+| `pdf`          | `application/pdf`  | PDF document (requires `pdf_id`).            |
 
 2. **EMP Resource Server**:
     - Validates the `access_token` (scope, expiration, `ref_id` binding).
@@ -357,19 +358,41 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
 
 - **Schema**: [ELMO XSD (v2.1.2)](https://github.com/emrex-eu/elmo-schemas/tree/v2.1.2)
 - **Description**: XML format based on **EN 15981/15982** for educational records (e.g., courses, grades, diplomas).
-  ```
+- **Headers**:
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/xml`      | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
 
 ### ELM
 
 - **Schemas**: [ELM Schemas ](https://github.com/european-commission-empl/European-Learning-Model)
 - **Description**: The European Learning Model (ELM) is a Data Model for Interoperability of Learning Opportunities,
   Qualifications, Accreditation and Credentials in Europe, developed by the European Commission.
+- **Headers**:
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/json`     | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
 
 ### PDF Metadata
 
 - **Schemas**: TBD
 - **Description**: JSON list of available PDF documents (e.g., diplomas, transcripts) with metadata such as title, issue
   date, type, size, and checksum.
+- **@TODO: Define pdf-metadata schema**
+- **Headers**:
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/json`     | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
+
 - **Example**:
   ```json
   {
@@ -390,11 +413,13 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
 
 - **Description**: Binary PDF file (e.g., diploma, transcript) with a detached signature in the `X-Signature` header.
 - **Headers**:
-  | Header | Value Example | Description |
-  |-------------------|-----------------------------------|--------------------------------------|
-  | `Content-Type`    | `application/pdf`                 | MIME type. |
-  | `X-Signature`     | `EMP_SIGNATURE_ABC123`            | Base64-encoded signature (RFC 7515). |
-  | `X-Signature-Alg` | `RS256`                           | Signature algorithm. |
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/pdf`      | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
+
 - **Example Request**:
   ```http
   GET /results?data_format=pdf&pdf_id=123-456-789 HTTP/1.1
@@ -405,7 +430,16 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
 ### Userinfo
 
 - **Description**: XML format based on **ELMO Learner** for student identification.
+- **@TODO Define a seperate schema for userinfo. Json/xml or both?**
 - **Schema**: [ELMO Learner XSD](https://github.com/emrex-eu/elmo-schemas/tree/v2.1.2)
+- **Headers**:
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/xml`      | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
+
 - **Example**:
   ```xml
   <learner>
@@ -421,7 +455,17 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
 
 - **Description**: JSON format compliant with **eIDAS Regulation** for electronic identification, including attributes
   such as `sub`, `family_name`, `given_name`, `birthdate`, and eIDAS-specific metadata.
+- **@TODO: Define our own EIDAS schema (all attributes from EIDAS schema, but only familiy_name, given_name and
+  birthdate required.)**
 - **Schema**: [eIDAS Attributes](https://ec.europa.eu/digital-building-blocks/wikis/display/DIGITAL/eIDAS+Attributes)
+- **Headers**:
+
+| Header            | Value Example          | Description                          |
+|-------------------|------------------------|--------------------------------------|
+| `Content-Type`    | `application/json`     | MIME type.                           |
+| `X-Signature`     | `EMP_SIGNATURE_ABC123` | Base64-encoded signature (RFC 7515). |
+| `X-Signature-Alg` | `RS256`                | Signature algorithm.                 |
+
 - **Example**:
   ```json
   {
@@ -437,7 +481,16 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
   }
   ```
 
----
+### Extensions
+
+In addition to the standard `data_formats` that an EMP registers in Emreg, an EMP can also register a URL to an OpenAPI
+specification
+(see the `extensionOpenApiSpec` field in Emreg). This OpenAPI specification defines additional resources that are
+specific to this EMP
+and are not part of the standardized Emreg `data_formats`. These extra resources can be accessed using the previously
+obtained Access Token.
+
+--- 
 
 ## Endpoints
 
@@ -485,3 +538,235 @@ EMREX 2.0 complies with the following standards:
 | **eIDAS**            | eIDAS Regulation  | Support for eIDAS-compliant user identification (`data_format=eidas`). |
 
 ---
+
+## Impact
+
+### 9. Impact of Migration to EMREX 2.0 for EMPs and EMCs
+
+The transition from **EMREX 1.0** to **EMREX 2.0** introduces significant architectural, security, and operational
+changes. This chapter outlines the key impacts for **EMPs (EMREX Providers)** and **EMCs (EMREX Clients)**, including
+technical adjustments, security enhancements, and compliance considerations.
+
+---
+
+### 9.1. Key Changes in EMREX 2.0
+
+| **Aspect**                | **EMREX 1.0**                          | **EMREX 2.0**                                                          | **Impact**                                                                                         |
+|---------------------------|----------------------------------------|------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| **Authentication Flow**   | POST/POST with signed Elmo             | OAuth2 + PKCE + JWT (RFC 6749, 7523, 7636)                             | **High**: Requires OAuth2 Authorization Server implementation.                                     |
+| **Client Authentication** | None                                   | JWT Assertions (RFC 7523)                                              | **High**: EMCs must generate and sign JWTs; EMPs must validate them. EMCs must register            |
+| **Data Retrieval**        | Single ELMO XML response               | Multiple formats (ELMO, ELM, PDF, EIDAS) + signed responses (RFC 7515) | **Medium**: EMPs must support new formats and signing; EMCs must verify signatures.                |
+| **Security**              | HTTPS + ELMO signing                   | OAuth2 PKCE + JWT + Signed Responses                                   | **High**: New security mechanisms require updates to token handling and validation logic.          |
+| **EMREG Integration**     | Static metadata (acronym, URL, key)    | Dynamic metadata (endpoints, data formats, OpenAPI extensions)         | **Medium**: EMPs/EMCs must register new fields (e.g., `authorizationUrl`, `extensionOpenapiSpec`). |
+| **Consent Management**    | Implicit (via session)                 | Explicit + granular (GDPR-compliant)                                   | **Medium**: EMPs must implement consent storage and validation.                                    |
+| **Error Handling**        | Custom error codes (e.g., `NCP_ERROR`) | Standardized OAuth2 error responses                                    | **Low**: Update error handling to comply with RFC 6749.                                            |
+| **Token Lifespan**        | NA                                     | Short-lived access tokens (5 minutes)                                  | **Low**: See token expiration                                                                      |
+
+---
+
+### 9.2. Impact for EMPs (EMREX Providers)
+
+#### **Technical Adjustments**
+
+1. **OAuth2 Authorization Server**:
+    - Implement **OAuth2 Authorization Code Flow + PKCE** (RFC 6749, RFC 7636).
+    - Support **JWT-based client authentication** (RFC 7523) to replace shared secrets.
+    - Example endpoints to implement:
+        - `/oauth2/authorize` (for student login and consent).
+        - `/oauth2/token` (for token exchange).
+        - `/results` (resource server with signed responses).
+
+2. **Dynamic Registration in EMREG**:
+    - Register new fields in EMREG:
+        - `authorizationUrl`, `tokenUrl`, `resourceUrl`.
+        - `supportedDataFormats` (e.g., `elmo`, `elm`, `pdf`).
+        - `extensionOpenapiSpec` (for custom APIs).
+    - Example EMREG registration snippet:
+      ```json
+      {
+        "emreg2Props": {
+          "authorizationUrl": "https://emp.example.com/oauth2/authorize",
+          "tokenUrl": "https://emp.example.com/oauth2/token",
+          "resourceUrl": "https://emp.example.com/results",
+          "supportedDataFormats": [
+            { "name": "elmo", "version": "2.1" },
+            { "name": "pdf", "version": "1.0" }
+          ]
+        }
+      }
+      ```
+
+3. **Signed Responses**:
+    - Sign all responses (ELMO, PDF, etc.) with the EMP’s private key (RFC 7515).
+    - Include headers:
+        - `X-Signature`: Base64-encoded signature.
+        - `X-Signature-Algorithm`: e.g., `RS256`.
+
+4. **Consent Management**:
+    - Store student consent explicitly (e.g., `ref_id`, selected results, timestamp).
+    - Bind consent to the `authorization_code` and `access_token`.
+
+5. **Legacy Support (Optional)**:
+    - Maintain a **dual-stack** (EMREX 1.0 + 2.0) during migration.
+    - Use EMREG to advertise support for both versions.
+
+#### **Security Enhancements**
+
+- **Eliminate Shared Secrets**: Replace with JWT assertions (RFC 7523).
+- **PKCE Protection**: Mitigate authorization code interception.
+- **Short-Lived Tokens**: Reduce risk of token leakage (max 10-minute lifespan).
+- **Signature Verification**: Ensure data integrity for all responses.
+
+#### **Operational Impact**
+
+- **Training**: Staff must be trained on OAuth2 flows and JWT handling.
+- **Monitoring**: New metrics for token usage, consent validation, and signature errors.
+- **Compliance**: Align with GDPR (granular consent) and eIDAS (trust levels).
+
+---
+
+### 9.3. Impact for EMCs (EMREX Clients)
+
+#### **Technical Adjustments**
+
+1. **OAuth2 Client Implementation**:
+    - Integrate **PKCE** (RFC 7636) for authorization requests.
+    - Generate and sign **JWT assertions** (RFC 7523) for token requests.
+    - Example token request:
+      ```http
+      POST /oauth2/token HTTP/1.1
+      Host: emp.example.com
+      Content-Type: application/x-www-form-urlencoded
+ 
+      grant_type=authorization_code &
+      code=AUTH_CODE_123 &
+      redirect_uri=https%3A%2F%2Femc.example.com%2Fcallback &
+      code_verifier=CODE_VERIFIER &
+      client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer &
+      client_assertion=SIGNED_JWT
+      ```
+
+2. **Dynamic EMP Discovery**:
+    - Fetch EMP metadata from EMREG (e.g., `authorizationUrl`, `supportedDataFormats`).
+    - Handle new data formats (e.g., `elm`, `eidas`) alongside ELMO.
+
+3. **Signature Verification**:
+    - Verify `X-Signature` headers in EMP responses using the EMP’s public key (from EMREG).
+    - Example verification logic (pseudocode):
+      ```java
+      public boolean verifySignature(String response, String signature, String publicKey) {
+        // Decode signature and verify using RS256
+        return JWT.verify(response, signature, publicKey, "RS256");
+      }
+      ```
+
+4. **Token Management**:
+    - Handle short-lived tokens (≤10 minutes) with retry logic.
+    - Cache EMP public keys to avoid repeated EMREG lookups.
+
+5. **Legacy Fallback (Optional)**:
+    - Support both EMREX 1.0 (POST/POST) and 2.0 (OAuth2) during migration.
+    - Use feature flags to toggle between versions.
+
+#### **Security Enhancements**
+
+- **No Shared Secrets**: Use JWT assertions instead.
+- **PKCE**: Protect against code interception attacks.
+- **Signature Validation**: Ensure responses are tamper-proof.
+
+#### **Operational Impact**
+
+- **User Experience**: Students may notice a more explicit consent step.
+- **Error Handling**: Update UI/UX for OAuth2 error responses (e.g., `invalid_grant`).
+- **Logging**: Track token exchanges, signature failures, and consent issues.
+
+---
+
+### 9.4. Migration Checklist
+
+#### **For EMPs**
+
+| **Task**                                | **Status** | **Notes**                                    |
+|-----------------------------------------|------------|----------------------------------------------|
+| Implement OAuth2 Authorization Server   | ⬜          | Use libraries like Spring Security OAuth2.   |
+| Register new endpoints in EMREG         | ⬜          | Update `emreg2Props`.                        |
+| Add support for signed responses        | ⬜          | Use RFC 7515 (JWS).                          |
+| Implement consent storage               | ⬜          | Store `ref_id`, selected results, timestamp. |
+| Test with a pilot EMC                   | ⬜          | Validate token exchange and data retrieval.  |
+| Update documentation for students/staff | ⬜          | Explain new consent and login flows.         |
+
+#### **For EMCs**
+
+| **Task**                           | **Status** | **Notes**                                                           |
+|------------------------------------|------------|---------------------------------------------------------------------|
+| Integrate PKCE and JWT assertions  | ⬜          | Use libraries like `oauthlib` (Python) or `nimbus-jose-jwt` (Java). |
+| Update EMREG metadata fetch logic  | ⬜          | Handle new fields (e.g., `authorizationUrl`).                       |
+| Implement signature verification   | ⬜          | Verify `X-Signature` headers.                                       |
+| Handle short-lived tokens          | ⬜          | Add retry logic for expired tokens.                                 |
+| Test with a pilot EMP              | ⬜          | Validate end-to-end flow.                                           |
+| Update student-facing instructions | ⬜          | Explain new consent and redirect steps.                             |
+
+---
+
+### 9.5. Common Challenges and Mitigations
+
+| **Challenge**                       | **Impact**              | **Mitigation**                                                                            |
+|-------------------------------------|-------------------------|-------------------------------------------------------------------------------------------|
+| **OAuth2 Complexity**               | High development effort | Use existing libraries (e.g., Spring Security, `oauthlib`) and reference implementations. |
+| **Short-Lived Tokens**              | Increased API calls     | Implement token caching and automatic retry logic.                                        |
+| **Signature Verification Overhead** | Performance impact      | Cache EMP public keys and pre-validate signatures.                                        |
+| **Consent Management**              | GDPR compliance risk    | Store consent with timestamps and allow revocation.                                       |
+| **Dual-Stack During Migration**     | Operational complexity  | Use feature flags to toggle between EMREX 1.0 and 2.0.                                    |
+| **EMREG Metadata Updates**          | Downtime risk           | Schedule updates during low-traffic periods using `activeByDateTimeUtc`.                  |
+
+---
+
+### 9.6. Timeline and Recommendations
+
+#### **Suggested Migration Timeline**
+
+1. **Phase 1: Preparation (1-2 months)**
+    - Audit current EMREX 1.0 implementation.
+    - Train teams on OAuth2, JWT, and PKCE.
+    - Set up a staging environment with EMREX 2.0.
+
+2. **Phase 2: Development (2-3 months)**
+    - Implement OAuth2 flows (EMPs) or client logic (EMCs).
+    - Integrate with EMREG for dynamic metadata.
+    - Add signature verification and consent management.
+
+3. **Phase 3: Testing (1 month)**
+    - Test with pilot partners (e.g., 1 EMP + 1 EMC).
+    - Validate end-to-end flows (authorization, token exchange, data retrieval).
+    - Perform load testing for token refresh scenarios.
+
+4. **Phase 4: Go-Live (1 month)**
+    - Gradually roll out EMREX 2.0 alongside 1.0 (dual-stack).
+    - Monitor for errors (e.g., token expiration, signature failures).
+    - Deprecate EMREX 1.0 after 6 months.
+
+#### **Recommendations**
+
+- **For EMPs**:
+    - Start with a **minimal viable implementation** (e.g., support only ELMO + PKCE).
+    - Use **OpenAPI** to document custom extensions (via `extensionOpenapiSpec`).
+    - Monitor token usage and consent revocations for GDPR compliance.
+
+- **For EMCs**:
+    - Prioritize **JWT assertion generation** and **signature verification**.
+    - Cache EMP metadata (e.g., public keys, endpoints) to reduce EMREG calls.
+    - Provide clear student instructions for the new consent flow.
+
+- **For Both**:
+    - Join the **EMREX community** for shared tools and best practices.
+    - Use the **EMREX 2.0 test suite** to validate compliance.
+
+---
+
+### 9.7. Backward Compatibility
+
+EMREX 2.0 is **not fully backward-compatible** with EMREX 1.0 due to:
+
+- **Protocol Changes**: POST/POST → OAuth2 + PKCE.
+- **Security**: Shared secrets → JWT assertions.
+- **Data Formats**: Single ELMO → Multiple formats + signing.
