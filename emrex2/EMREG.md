@@ -141,11 +141,12 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 
 #### DataFormat
 
-| **Attribute** | **Type** | **Description**               | **Required** | **Example**                 |
-|---------------|----------|-------------------------------|--------------|-----------------------------|
-| `name`        | String   | Name of the data format.      | Yes          | `elmo`                      |
-| `version`     | String   | Version of the format.        | No           | `2.1`                       |
-| `schemaUrl`   | URL      | URL to the schema definition. | No           | `https://emrex.eu/elmo.xsd` |
+| **Attribute**        | **Type** | **Description**                                     | **Required** | **Example**                 |
+|----------------------|----------|-----------------------------------------------------|--------------|-----------------------------|
+| `name`               | String   | Name of the data format.                            | Yes          | `elmo`                      |
+| `version`            | String   | Version of the format.                              | No           | `2.1`                       |
+| `schemaUrl`          | URL      | URL to the schema definition.                       | No           | `https://emrex.eu/elmo.xsd` |
+| `allowedQueryParams` | String   | Query Parameters to be used to 'query' the resource | No           | `withAttachements`          |
 
 #### EvidenceType
 
