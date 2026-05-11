@@ -53,15 +53,15 @@ EMREG follows a **centralized registry model** with the following components:
 
 An **EMP** represents an institution or service that provides educational results (e.g., grades, diplomas).
 
-| **Attribute**  | **Type**      | **Description**                                                                    | **Required** | **Example**                         |
-|----------------|---------------|------------------------------------------------------------------------------------|--------------|-------------------------------------|
-| `name`         | String        | Official name of the EMP.                                                          | Yes          | "DUO (Dienst Uitvoering Onderwijs)" |
-| `adminEmail`   | String        | Contact email for administrative purposes.                                         | Yes          | `admin@duo.nl`                      |
-| `website`      | URL           | Official website of the EMP.                                                       | Yes          | `https://www.duo.nl`                |
-| `publicKey`    | String (PEM)  | Public key certificate for JWT signature validation and response signing. RFC 5280 | Yes          | `-----BEGIN PUBLIC KEY-----...`     |
-| `emreg2Props`  | Object        | EMREX 2.0-specific properties (see below).                                         | Yes          |                                     |
-| `institutions` | Institution[] | List of institutions represented by this EMP.                                      | No           |                                     |
-| `country`      | Country       | Country where the EMP is based (see [3.3](#33-supporting-data-models)).            | Yes          |                                     |
+| **Attribute**  | **Type**      | **Description**                                                                        | **Required** | **Example**                                |
+|----------------|---------------|----------------------------------------------------------------------------------------|--------------|--------------------------------------------|
+| `name`         | String        | Official name of the EMP.                                                              | Yes          | "DUO (Dienst Uitvoering Onderwijs)"        |
+| `adminEmail`   | String        | Contact email for administrative purposes.                                             | Yes          | `admin@duo.nl`                             |
+| `website`      | URL           | Official website of the EMP.                                                           | Yes          | `https://www.duo.nl`                       |
+| `publicKeyUrl` | String (PEM)  | URL Public key certificate for JWT signature validation and response signing. RFC 5280 | Yes          | `https://url-to-key.org/publicKeyCert.pem` |
+| `emreg2Props`  | Object        | EMREX 2.0-specific properties (see below).                                             | Yes          |                                            |
+| `institutions` | Institution[] | List of institutions represented by this EMP.                                          | No           |                                            |
+| `country`      | Country       | Country where the EMP is based (see [3.3](#33-supporting-data-models)).                | Yes          |                                            |   
 
 #### `emreg2Props` Object
 
@@ -83,7 +83,7 @@ An **EMP** represents an institution or service that provides educational result
   "name": "DUO (Dienst Uitvoering Onderwijs)",
   "adminEmail": "admin@duo.nl",
   "website": "https://www.duo.nl",
-  "publicKey": "-----BEGIN PUBLIC KEY-----...",
+  "publicKey": "https://url-to-key.org/publicKeyCert.pem",
   "emreg2Props": {
     "supportedDataFormats": [
     ],
@@ -93,7 +93,7 @@ An **EMP** represents an institution or service that provides educational result
     "requiredTrustLevel": "substantial",
     "pingUrl": "https://emp.duo.nl/ping"
   },
-  "institutions":,
+  "institutions": [],
   "country": {
     "isoCode": "NL",
     "singleFetch": false
@@ -149,23 +149,28 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 | `allowedQueryParams` | String   | Query Parameters to be used to 'query' the resource | No           | `withAttachements`          |
 
 ##### Exmmple data formats
+
 ```json
 [
-   {
-     "name": "elmo-1.5",
-      "version": "1.5",
-      "schemaUrl": "<LINK TO ELMO 1.5 XSD ON GITHUB"
-   },
-   {
-      "name": "elmo-2.1",
-      "version": "2.1",
-      "schemaUrl": "<LINK TO ELMO 2.1 XSD ON GITHUB"
-   },
-   {
-      "name": "PDF"
-   }
+  {
+    "name": "elmo",
+    "version": "1.5",
+    "schemaUrl": "<LINK TO ELMO 1.5 XSD ON GITHUB"
+  },
+  {
+    "name": "elmo",
+    "version": "2.1",
+    "schemaUrl": "<LINK TO ELMO 2.1 XSD ON GITHUB"
+  },
+  {
+    "name": "elm-3.3",
+    "version": "3.3"
+  },
+  {
+    "name": "pdf"
+  }
 ]
-   
+//   @TODO: Emreg checks if evidence already exsists when adding.
 
 ```
 
@@ -181,42 +186,62 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 
 ```json
 [
-   {
-      "name": "ELMO report (all evidence types?)",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "Higher education proof of enrolment",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "Higher education diploma",
-      "dataFormats" : ["elmo-1.5, elmo-2.1", "pdf"]
-   },
-   {
-      "name": "Higher education diploma Supplement",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "Higher education transcript of records",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "Upper secondary education certificate",
-      "dataFormats" : ["elmo-1.5, elmo-2.1", "pdf"]
-   },
-   {
-      "name": "Upper secondary education transcript of records",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "European Micro credential -> move to data format?",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
-   {
-      "name": "Open Badge -> move to data format?",
-      "dataFormats" : ["elmo-1.5, elmo-2.1"]
-   },
+  {
+    "name": "Emrex transcript",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "Higher education proof of enrolment",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "Higher education diploma",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1",
+      "pdf"
+    ]
+  },
+  {
+    "name": "Higher education diploma Supplement",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "Higher education transcript of records",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "Upper secondary education certificate",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1",
+      "pdf"
+    ]
+  },
+  {
+    "name": "Upper secondary education transcript of records",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "European Micro credential -> move to data format?",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  },
+  {
+    "name": "Open Badge -> move to data format?",
+    "dataFormats": [
+      "elmo-1.5, elmo-2.1"
+    ]
+  }
 ]
 ```
 
