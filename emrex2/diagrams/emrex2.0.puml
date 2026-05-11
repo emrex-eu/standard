@@ -31,7 +31,7 @@ group **PKCE preparation**
 end group
 
 emc_bff --> emc_fe: Authorization URL parameters
-emc_fe -> emp_bff: HTTP 302 Redirect to EMP with url-params:\nJWT Client Auth token??\n**Oauth2 params RFC 6749**\nclient_id=EMC_CLIENT_ID\nredirect_uri=EMC_REDIRECT_URI\nresponse_type=code\nstate=CSRF_TOKEN\nscope(optional??)=userinfo%20elmo\n**PKCE params RFC 7636**\ncode_challenge=CODE_CHALLENGE\ncode_challenge_method=S256
+emc_fe -> emp_bff: HTTP 302 Redirect to EMP with url-params:\n**Oauth2 params RFC 6749**\nclient_id=EMC_CLIENT_ID\nredirect_uri=EMC_REDIRECT_URI\nresponse_type=code\nstate=CSRF_TOKEN\nscope(optional??)=userinfo%20elmo\n**PKCE params RFC 7636**\ncode_challenge=CODE_CHALLENGE\ncode_challenge_method=S256
 
 == 3. EMP Client Verification and result selection ==
 emp_bff -> emreg: GET /clients/EMC_CLIENT_ID\nAuthorization: Bearer EMP_API_TOKEN -> **Details to be decided**

@@ -53,28 +53,28 @@ EMREG follows a **centralized registry model** with the following components:
 
 An **EMP** represents an institution or service that provides educational results (e.g., grades, diplomas).
 
-| **Attribute**  | **Type**      | **Description**                                                         | **Required** | **Example**                         |
-|----------------|---------------|-------------------------------------------------------------------------|--------------|-------------------------------------|
-| `name`         | String        | Official name of the EMP.                                               | Yes          | "DUO (Dienst Uitvoering Onderwijs)" |
-| `adminEmail`   | String        | Contact email for administrative purposes.                              | Yes          | `admin@duo.nl`                      |
-| `website`      | URL           | Official website of the EMP.                                            | Yes          | `https://www.duo.nl`                |
-| `publicKey`    | String (PEM)  | Public key for JWT signature validation and response signing.           | Yes          | `-----BEGIN PUBLIC KEY-----...`     |
-| `emreg2Props`  | Object        | EMREX 2.0-specific properties (see below).                              | Yes          |                                     |
-| `institutions` | Institution[] | List of institutions represented by this EMP.                           | No           |                                     |
-| `country`      | Country       | Country where the EMP is based (see [3.3](#33-supporting-data-models)). | Yes          |                                     |
+| **Attribute**  | **Type**      | **Description**                                                                    | **Required** | **Example**                         |
+|----------------|---------------|------------------------------------------------------------------------------------|--------------|-------------------------------------|
+| `name`         | String        | Official name of the EMP.                                                          | Yes          | "DUO (Dienst Uitvoering Onderwijs)" |
+| `adminEmail`   | String        | Contact email for administrative purposes.                                         | Yes          | `admin@duo.nl`                      |
+| `website`      | URL           | Official website of the EMP.                                                       | Yes          | `https://www.duo.nl`                |
+| `publicKey`    | String (PEM)  | Public key certificate for JWT signature validation and response signing. RFC 5280 | Yes          | `-----BEGIN PUBLIC KEY-----...`     |
+| `emreg2Props`  | Object        | EMREX 2.0-specific properties (see below).                                         | Yes          |                                     |
+| `institutions` | Institution[] | List of institutions represented by this EMP.                                      | No           |                                     |
+| `country`      | Country       | Country where the EMP is based (see [3.3](#33-supporting-data-models)).            | Yes          |                                     |
 
 #### `emreg2Props` Object
 
-| **Attribute**            | **Type**       | **Description**                                                          | **Required** | **Example**                                | Note                              | 
-|--------------------------|----------------|--------------------------------------------------------------------------|--------------|--------------------------------------------|-----------------------------------| 
-| `supportedDataFormats`   | DataFormat[]   | List of supported data formats (e.g., ELMO XML, ELM JSON).               | Yes          |                                            | @TODO: HOW TO MANAGE DATA FORMATS |
-| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).               | No           |                                            | @TODO: NEEDS DISCUSSION           |
-| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                                | Yes          | `https://emp.duo.nl/oauth2/authorize`      |                                   |
-| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                        | Yes          | `https://emp.duo.nl/oauth2/token`          |                                   |
-| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                           | Yes          | `https://emp.duo.nl/results`               |                                   |
-| `requiredTrustLevel`     | String         | Minimum trust level required for EMCs (e.g., "substantial", "high").     | No           | `substantial`                              | @TODO: NEEDS DISCUSSION           |
-| `extensionOpenapiSpec`   | URL            | Optional url to an openapi spec where EMP describes additional resources | No           | `https://emp.duo.nl/results/api-docs.yaml` |                                   |
-| `pingUrl`                | URL            | Endpoint for health checks.                                              | No           | `https://emp.duo.nl/ping`                  |                                   |
+| **Attribute**            | **Type**       | **Description**                                                          | **Required** | **Example**                                | Note                                     | 
+|--------------------------|----------------|--------------------------------------------------------------------------|--------------|--------------------------------------------|------------------------------------------| 
+| `supportedDataFormats`   | DataFormat[]   | List of supported data formats (e.g., ELMO XML, ELM JSON).               | Yes          |                                            | MOVED TO EVIDENCE TYPE, REMOVE FROM HERE |
+| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).               | Yes          |                                            | INCLUDES DATA FORMAT                     |
+| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                                | Yes          | `https://emp.duo.nl/oauth2/authorize`      |                                          |
+| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                        | Yes          | `https://emp.duo.nl/oauth2/token`          |                                          |
+| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                           | Yes          | `https://emp.duo.nl/results`               |                                          |
+| `requiredTrustLevel`     | String         | Minimum trust level required for EMCs (e.g., "substantial", "high").     | No           | `substantial`                              | @TODO: NEEDS DISCUSSION                  |
+| `extensionOpenapiSpec`   | URL            | Optional url to an openapi spec where EMP describes additional resources | No           | `https://emp.duo.nl/results/api-docs.yaml` |                                          |
+| `pingUrl`                | URL            | Endpoint for health checks.                                              | No           | `https://emp.duo.nl/ping`                  |                                          |
 
 #### Example EMP JSON
 
@@ -105,17 +105,17 @@ An **EMP** represents an institution or service that provides educational result
 
 An **EMC** represents an institution that requests educational results (e.g., a home university).
 
-| **Attribute** | **Type**        | **Description**                                              | **Required** | **Example**                     |
-|---------------|-----------------|--------------------------------------------------------------|--------------|---------------------------------|
-| `clientId`    | String          | Unique identifier for the EMC.                               | Yes          | `emc-nl-uva`                    |
-| `redirectUri` | URL             | OAuth2 redirect URI (must match exactly during validation).  | Yes          | `https://emc.uva.nl/callback`   |
-| `name`        | LocalizedString | Localized name of the EMC (supports multiple languages).     | Yes          | `{ "en": "UVA", "nl": "UvA" }`  |
-| `logo`        | URL             | URL to the EMC's logo.                                       | No           | `https://emc.uva.nl/logo.png`   |
-| `country`     | String          | Country where EMC is based (ISO Country code)                | Yes          | `NL`                            |
-| `trustLevel`  | String          | Trust level assigned by EMREG (e.g., "substantial", "high"). | Yes          | `substantial`                   |
-| `email`       | String          | Contact email for administrative purposes.                   | Yes          | `emrex@uva.nl`                  |
-| `website`     | URL             | Official website of the EMC.                                 | No           | `https://www.uva.nl`            |
-| `publicKey`   | String (PEM)    | Public key for JWT signature validation.                     | Yes          | `-----BEGIN PUBLIC KEY-----...` |
+| **Attribute** | **Type**        | **Description**                                                                       | **Required** | **Example**                     |
+|---------------|-----------------|---------------------------------------------------------------------------------------|--------------|---------------------------------|
+| `clientId`    | String          | Unique identifier for the EMC.                                                        | Yes          | `emc-nl-uva`                    |
+| `redirectUri` | URL             | OAuth2 redirect URI (must match exactly during validation).                           | Yes          | `https://emc.uva.nl/callback`   |
+| `name`        | LocalizedString | Localized name of the EMC (supports multiple languages).                              | Yes          | `{ "en": "UVA", "nl": "UvA" }`  |
+| `logo`        | URL             | URL to the EMC's logo.                                                                | No           | `https://emc.uva.nl/logo.png`   |
+| `country`     | String          | Country where EMC is based (ISO Country code)                                         | Yes          | `NL`                            |
+| `trustLevel`  | String          | Trust level assigned by EMREG (e.g., "substantial", "high").                          | Yes          | `substantial`                   |
+| `email`       | String          | Contact email for administrative purposes.                                            | Yes          | `emrex@uva.nl`                  |
+| `website`     | URL             | Official website of the EMC.                                                          | No           | `https://www.uva.nl`            |
+| `publicKey`   | String (PEM)    | Public key certificate for JWT signature validation. RFC 5280. Self signed is allowed | Yes          | `-----BEGIN PUBLIC KEY-----...` |
 
 #### Example EMC JSON
 
@@ -148,11 +148,77 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 | `schemaUrl`          | URL      | URL to the schema definition.                       | No           | `https://emrex.eu/elmo.xsd` |
 | `allowedQueryParams` | String   | Query Parameters to be used to 'query' the resource | No           | `withAttachements`          |
 
+##### Exmmple data formats
+```json
+[
+   {
+     "name": "elmo-1.5",
+      "version": "1.5",
+      "schemaUrl": "<LINK TO ELMO 1.5 XSD ON GITHUB"
+   },
+   {
+      "name": "elmo-2.1",
+      "version": "2.1",
+      "schemaUrl": "<LINK TO ELMO 2.1 XSD ON GITHUB"
+   },
+   {
+      "name": "PDF"
+   }
+]
+   
+
+```
+
 #### EvidenceType
 
-| **Attribute** | **Type** | **Description**            | **Required** | **Example** |
-|---------------|----------|----------------------------|--------------|-------------|
-| `name`        | String   | Name of the evidence type. | Yes          | `diploma`   |
+| **Attribute** | **Type**     | **Description**                                                  | **Required** | **Example**    |
+|---------------|--------------|------------------------------------------------------------------|--------------|----------------|
+| `name`        | String       | Name of the evidence type.                                       | Yes          | `diploma`      |
+| `type`        | String       | Type of the evidence type?. For example result, enrollment, etc. | Yes          | `result`       |
+| `dataFormats` | DataFormat[] | Supported data formates types for this evidence type             | Yes          | `elmo-2.1,pdf` |
+
+##### Example evidence types
+
+```json
+[
+   {
+      "name": "ELMO report (all evidence types?)",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "Higher education proof of enrolment",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "Higher education diploma",
+      "dataFormats" : ["elmo-1.5, elmo-2.1", "pdf"]
+   },
+   {
+      "name": "Higher education diploma Supplement",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "Higher education transcript of records",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "Upper secondary education certificate",
+      "dataFormats" : ["elmo-1.5, elmo-2.1", "pdf"]
+   },
+   {
+      "name": "Upper secondary education transcript of records",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "European Micro credential -> move to data format?",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+   {
+      "name": "Open Badge -> move to data format?",
+      "dataFormats" : ["elmo-1.5, elmo-2.1"]
+   },
+]
+```
 
 #### Institution
 

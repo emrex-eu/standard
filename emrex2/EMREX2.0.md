@@ -94,7 +94,10 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
          "institutions": ["University of Amsterdam", "TU Delft"],
          "authorization_url": "https://emp.nl/oauth2/authorize",
          "token_url": "https://emp.nl/oauth2/token",
-         "public_key": "-----BEGIN PUBLIC KEY-----..."
+         "public_key": "-----BEGIN PUBLIC KEY-----...",
+         "supportedDataFormats": [
+            ...
+        ]
        }
      ]
    }
@@ -123,13 +126,12 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
     - `code_challenge` is sent to the EMP.
 
 2. **EMC Backend** prepares the authorization URL with:
-    - Signed JWT for client identification
     - OAuth2 parameters (RFC 6749):
         - `response_type=code`
         - `client_id` (e.g., `emc-nl-uva`).
         - `redirect_uri` (must match EMREG registration).
         - `state` (CSRF protection).
-        - `scope??` (eg user_info elmo)
+        - `scope` Desired evidence type - Optional; empty is all
     - PKCE parameters (RFC 7636):
         - `code_challenge` (SHA-256).
         - `code_challenge_method=S256`.
