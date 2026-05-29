@@ -65,16 +65,14 @@ An **EMP** represents an institution or service that provides educational result
 
 #### `emreg2Props` Object
 
-| **Attribute**            | **Type**       | **Description**                                                          | **Required** | **Example**                                | Note                                     | 
-|--------------------------|----------------|--------------------------------------------------------------------------|--------------|--------------------------------------------|------------------------------------------| 
-| `supportedDataFormats`   | DataFormat[]   | List of supported data formats (e.g., ELMO XML, ELM JSON).               | Yes          |                                            | MOVED TO EVIDENCE TYPE, REMOVE FROM HERE |
-| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).               | Yes          |                                            | INCLUDES DATA FORMAT                     |
-| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                                | Yes          | `https://emp.duo.nl/oauth2/authorize`      |                                          |
-| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                        | Yes          | `https://emp.duo.nl/oauth2/token`          |                                          |
-| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                           | Yes          | `https://emp.duo.nl/results`               |                                          |
-| `requiredTrustLevel`     | String         | Minimum trust level required for EMCs (e.g., "substantial", "high").     | No           | `substantial`                              | @TODO: NEEDS DISCUSSION                  |
-| `extensionOpenapiSpec`   | URL            | Optional url to an openapi spec where EMP describes additional resources | No           | `https://emp.duo.nl/results/api-docs.yaml` |                                          |
-| `pingUrl`                | URL            | Endpoint for health checks.                                              | No           | `https://emp.duo.nl/ping`                  |                                          |
+| **Attribute**            | **Type**       | **Description**                                                          | **Required** | **Example**                                | Note                 | 
+|--------------------------|----------------|--------------------------------------------------------------------------|--------------|--------------------------------------------|----------------------| 
+| `availableEvidenceTypes` | EvidenceType[] | Types of evidence supported (e.g., diplomas, transcripts).               | Yes          |                                            | Includes data format |
+| `authorizationUrl`       | URL            | OAuth2 authorization endpoint (RFC 6749).                                | Yes          | `https://emp.duo.nl/oauth2/authorize`      |                      |
+| `tokenUrl`               | URL            | OAuth2 token endpoint (RFC 6749).                                        | Yes          | `https://emp.duo.nl/oauth2/token`          |                      |
+| `resourceUrl`            | URL            | Resource server endpoint for fetching results.                           | Yes          | `https://emp.duo.nl/results`               |                      |
+| `extensionOpenapiSpec`   | URL            | Optional url to an openapi spec where EMP describes additional resources | No           | `https://emp.duo.nl/results/api-docs.yaml` |                      |
+| `pingUrl`                | URL            | Endpoint for health checks.                                              | No           | `https://emp.duo.nl/ping`                  |                      |
 
 #### Example EMP JSON
 
@@ -85,12 +83,17 @@ An **EMP** represents an institution or service that provides educational result
   "website": "https://www.duo.nl",
   "publicKey": "https://url-to-key.org/publicKeyCert.pem",
   "emreg2Props": {
-    "supportedDataFormats": [
+    "availableEvidenceTypes": [
+      {
+        "name": "Higher education proof of enrolment",
+        "dataFormats": [
+          "elmo-1.5, elmo-2.1"
+        ]
+      }
     ],
     "authorizationUrl": "https://emp.duo.nl/oauth2/authorize",
     "tokenUrl": "https://emp.duo.nl/oauth2/token",
     "resourceUrl": "https://emp.duo.nl/results",
-    "requiredTrustLevel": "substantial",
     "pingUrl": "https://emp.duo.nl/ping"
   },
   "institutions": [],
@@ -112,7 +115,6 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 | `name`        | LocalizedString | Localized name of the EMC (supports multiple languages).                              | Yes          | `{ "en": "UVA", "nl": "UvA" }`  |
 | `logo`        | URL             | URL to the EMC's logo.                                                                | No           | `https://emc.uva.nl/logo.png`   |
 | `country`     | String          | Country where EMC is based (ISO Country code)                                         | Yes          | `NL`                            |
-| `trustLevel`  | String          | Trust level assigned by EMREG (e.g., "substantial", "high").                          | Yes          | `substantial`                   |
 | `email`       | String          | Contact email for administrative purposes.                                            | Yes          | `emrex@uva.nl`                  |
 | `website`     | URL             | Official website of the EMC.                                                          | No           | `https://www.uva.nl`            |
 | `publicKey`   | String (PEM)    | Public key certificate for JWT signature validation. RFC 5280. Self signed is allowed | Yes          | `-----BEGIN PUBLIC KEY-----...` |
@@ -128,7 +130,6 @@ An **EMC** represents an institution that requests educational results (e.g., a 
     "nl": "Universiteit van Amsterdam"
   },
   "logo": "https://emc.uva.nl/logo.png",
-  "trustLevel": "substantial",
   "email": "emrex@uva.nl",
   "website": "https://www.uva.nl",
   "publicKey": "-----BEGIN PUBLIC KEY-----..."
@@ -145,33 +146,41 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 |----------------------|----------|-----------------------------------------------------|--------------|-----------------------------|
 | `name`               | String   | Name of the data format.                            | Yes          | `elmo`                      |
 | `version`            | String   | Version of the format.                              | No           | `2.1`                       |
+| `contentType`        | String   | The corresponding HTTP Content Type                 | No           | `application/json`          |
 | `schemaUrl`          | URL      | URL to the schema definition.                       | No           | `https://emrex.eu/elmo.xsd` |
 | `allowedQueryParams` | String   | Query Parameters to be used to 'query' the resource | No           | `withAttachements`          |
 
+EMC's are allowed to add data-formats to Emreg using the self service portal. Emreg will check if a dataformat already
+exists.
+
 ##### Exmmple data formats
 
+[//]: # (@TODO: Add resource URI to dataformat?)
+[//]: # (@TODO: For PDF/files define a schema containing the metadata? For example; filename, date, extension, resourceURI (the exact URI where the binary can be downloaded)
 ```json
 [
   {
     "name": "elmo",
     "version": "1.5",
+    "contentType": "text/xml",
     "schemaUrl": "<LINK TO ELMO 1.5 XSD ON GITHUB"
   },
   {
     "name": "elmo",
     "version": "2.1",
+    "contentType": "text/xml",
     "schemaUrl": "<LINK TO ELMO 2.1 XSD ON GITHUB"
   },
   {
     "name": "elm-3.3",
+     "contentType": "text/xml", 
     "version": "3.3"
   },
   {
-    "name": "pdf"
+    "name": "pdf",
+    "contentType": "application/pdf"
   }
 ]
-//   @TODO: Emreg checks if evidence already exsists when adding.
-
 ```
 
 #### EvidenceType
@@ -181,6 +190,8 @@ An **EMC** represents an institution that requests educational results (e.g., a 
 | `name`        | String       | Name of the evidence type.                                       | Yes          | `diploma`      |
 | `type`        | String       | Type of the evidence type?. For example result, enrollment, etc. | Yes          | `result`       |
 | `dataFormats` | DataFormat[] | Supported data formates types for this evidence type             | Yes          | `elmo-2.1,pdf` |
+
+EMP's add their evidence types to Emreg using the self service portal.
 
 ##### Example evidence types
 
@@ -294,7 +305,7 @@ Both flows use the **same data models** but differ in **approval requirements** 
         - Administrator verifies technical details (e.g., `redirectUri`, public key format).
     - Approval criteria:
         - For EMPs: Must be a recognized institution (e.g., national agency or university).
-        - For EMCs: Must be a legitimate educational institution.
+        - For EMCs: Must be a legitimate institution/organization.
     - The reviewer may contact the applicant for additional verification (e.g., phone call, documentation).
 
 4. **Approval/Rejection**:
@@ -317,13 +328,12 @@ Both flows use the **same data models** but differ in **approval requirements** 
         - Allows institutions to schedule updates (e.g., for maintenance windows).
     - Updates can include:
         - New endpoints (e.g., `authorizationUrl`, `tokenUrl`).
-        - Updated public keys.
-        - Changes to supported data formats or trust levels.
+        - Update the public key url.
+        - Changes to supported data formats or evidence types.
 
 3. **Review and Approval**:
     - **EMP Updates**:
-        - Sent to the **EMREX Board** for approval if the update includes significant changes (e.g., new institutions,
-          trust level changes).
+        - Sent to the **EMREX Board** for approval if the update includes significant changes (e.g., new institutions).
         - Minor updates (e.g., endpoint URLs) may be auto-approved.
     - **EMC Updates**:
         - Reviewed by an **EMREG Administrator** if the update includes critical changes (e.g., `redirectUri`,
@@ -376,12 +386,15 @@ Both flows use the **same data models** but differ in **approval requirements** 
 
 EMREG provides a **REST API** for programmatic access to registry data. The following endpoints are available:
 
-| **Endpoint**          | **Method** | **Description**                      | **Authentication** | **Example Request**       |
-|-----------------------|------------|--------------------------------------|--------------------|---------------------------|
-| `/emp-list`           | GET        | Returns a list of active EMPs.       | None               | `GET /emp-list`           |
-| `/emp/{empId}`        | GET        | Returns metadata for a specific EMP. | None               | `GET /emp/duo-nl`         |
-| `/clients/{clientId}` | GET        | Returns metadata for a specific EMC. | Bearer Token (EMP) | `GET /clients/emc-nl-uva` |
-| `/health`             | GET        | Health check endpoint.               | None               | `GET /health`             |
+| **Endpoint**                         | **Method** | **Description**                                                  | **Authentication** | **Example Request**                                     |
+|--------------------------------------|------------|------------------------------------------------------------------|--------------------|---------------------------------------------------------|
+| `/emp-list`                          | GET        | Returns a list of active EMPs.                                   | None               | `GET /emp-list`                                         |
+| `/emp/{empId}`                       | GET        | Returns metadata for a specific EMP.                             | None               | `GET /emp/duo-nl`                                       |
+| `/emp/{empId}/evidenceType`          | GET        | Returns the support evidence types for a specific EMP.           | None               | `GET /emp/duo-nl/evidendeTypes`                         |
+| `/evidenceType`                      | GET        | Returns a list of all the known evidence types in the registry   | None               | `GET /evidenceType`                                     |
+| `/evidenceType/search?evidenceType=` | GET        | Returns a list of EMP's matching the evidence type in the query. | None               | `GET /evidenceType/search?evidenceType=HigherEducation` |
+| `/clients/{clientId}`                | GET        | Returns metadata for a specific EMC.                             | Bearer Token (EMP) | `GET /clients/emc-nl-uva`                               |
+| `/health`                            | GET        | Health check endpoint.                                           | None               | `GET /health`                                           |
 
 ---
 
@@ -395,22 +408,17 @@ EMREG provides a **REST API** for programmatic access to registry data. The foll
     - EMREG validates the format of public keys during registration and updates.
     - Keys must be in **PEM format** and use **RS256** (RFC 7518).
 
-3. **Trust Levels**:
-    - EMPs can specify a `requiredTrustLevel` for EMCs.
-    - EMCs are assigned a `trustLevel` by EMREG.
-    - Token requests are rejected if the EMC's `trustLevel` is below the EMP's `requiredTrustLevel`.
-
-4. **Rate Limiting**:
+3. **Rate Limiting**:
     - EMREG API endpoints enforce rate limiting to prevent abuse.
 
-5. **Data Validation**:
+4. **Data Validation**:
     - All fields are validated against the data models.
     - Invalid submissions are rejected with detailed error messages.
 
-6. **Audit Logging**:
+5. **Audit Logging**:
     - All registration changes and API accesses are logged for auditing.
 
-7. **Scheduled Activations**:
+6. **Scheduled Activations**:
     - Updates are only activated at the specified `activeByDateTimeUtc`, reducing the risk of unintended disruptions.
 
 ---

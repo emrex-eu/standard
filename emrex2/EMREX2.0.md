@@ -22,8 +22,8 @@
 
 ## Introduction
 
-EMREX 2.0 is a **secure, OAuth2-based protocol** for exchanging educational results (e.g., grades, diplomas) between
-institutions. It replaces the legacy EMREX 1.0 POST/POST flow with a **modern Authorization Code Flow + PKCE**,
+EMREX 2.0 is a **secure, OAuth2-based protocol** for exchanging (educational) results (e.g., grades, diplomas) between
+institutions and organizations. It replaces the legacy EMREX 1.0 POST/POST flow with a **modern Authorization Code Flow + PKCE**,
 ensuring:
 
 - **End-to-end security** (RFC 6749, RFC 7636, RFC 7523).
@@ -95,11 +95,17 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
          "authorization_url": "https://emp.nl/oauth2/authorize",
          "token_url": "https://emp.nl/oauth2/token",
          "public_key": "-----BEGIN PUBLIC KEY-----...",
-         "supportedDataFormats": [
-            ...
-        ]
-       }
-     ]
+         "availableEvidenceTypes": [
+            {
+              "name": "Higher education proof of enrolment",
+              "dataFormats": [
+              "elmo-1.5, elmo-2.1"
+              ]
+            }
+          ]
+        },
+        .. more emps ..   
+      ]
    }
    ```
 4. **EMC Frontend** displays the list; student selects an EMP.
@@ -131,7 +137,7 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
         - `client_id` (e.g., `emc-nl-uva`).
         - `redirect_uri` (must match EMREG registration).
         - `state` (CSRF protection).
-        - `scope` Desired evidence type - Optional; empty is all
+        - `scope` Desired evidence type - Optional; empty is all available
     - PKCE parameters (RFC 7636):
         - `code_challenge` (SHA-256).
         - `code_challenge_method=S256`.
@@ -200,7 +206,7 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
 2. After authentication, **EMP Backend** retrieves the student’s results.
 3. **EMP Frontend** displays results for selection (e.g., courses, grades).
 4. Student selects results and grants consent.
-5. **EMP Backend** stores the selection with a **reference ID** (`ref_id`):
+5. **EMP Backend** stores the selection with a **reference ID** (`ref_id`). For example:
    ```json
    {
      "ref_id": "a1b2c3d4-5678-90ef-ghij-klmnopqrstuv",
@@ -298,7 +304,7 @@ EMREX 2.0 follows a **decentralized architecture** with three core components:
    X-Request-ID: req-12345
    ```
 
-Supported `data_format` values:
+The content type is an attribute of the data_format. Supported `data_format` values:
 
 | Format         | Content-Type       | Description                                  |
 |----------------|--------------------|----------------------------------------------|
@@ -540,6 +546,8 @@ EMREX 2.0 complies with the following standards:
 | **Interoperability** | HTTPS (RFC 2818)  | Mandatory for all communications.                                      |
 | **eIDAS**            | eIDAS Regulation  | Support for eIDAS-compliant user identification (`data_format=eidas`). |
 
+[//]: # (@TODO: Do we want eiDAS compliant user identification?)
+
 ---
 
 ## Impact
@@ -582,7 +590,7 @@ technical adjustments, security enhancements, and compliance considerations.
 2. **Dynamic Registration in EMREG**:
     - Register new fields in EMREG:
         - `authorizationUrl`, `tokenUrl`, `resourceUrl`.
-        - `supportedDataFormats` (e.g., `elmo`, `elm`, `pdf`).
+        - `supportedEvidenceTypes and Dataformats` (e.g., `HigherEducation; ELMO, PDF`).
         - `extensionOpenapiSpec` (for custom APIs).
     - Example EMREG registration snippet:
       ```json
@@ -591,10 +599,13 @@ technical adjustments, security enhancements, and compliance considerations.
           "authorizationUrl": "https://emp.example.com/oauth2/authorize",
           "tokenUrl": "https://emp.example.com/oauth2/token",
           "resourceUrl": "https://emp.example.com/results",
-          "supportedDataFormats": [
-            { "name": "elmo", "version": "2.1" },
-            { "name": "pdf", "version": "1.0" }
-          ]
+          "availableEvidenceTypes": [
+            {
+              "name": "Higher education proof of enrolment",
+              "dataFormats": [
+                "elmo-1.5, elmo-2.1"
+              ]
+            }
         }
       }
       ```
@@ -624,7 +635,7 @@ technical adjustments, security enhancements, and compliance considerations.
 
 - **Training**: Staff must be trained on OAuth2 flows and JWT handling.
 - **Monitoring**: New metrics for token usage, consent validation, and signature errors.
-- **Compliance**: Align with GDPR (granular consent) and eIDAS (trust levels).
+- **Compliance**: Align with GDPR (granular consent).
 
 ---
 
@@ -650,7 +661,7 @@ technical adjustments, security enhancements, and compliance considerations.
       ```
 
 2. **Dynamic EMP Discovery**:
-    - Fetch EMP metadata from EMREG (e.g., `authorizationUrl`, `supportedDataFormats`).
+    - Fetch EMP metadata from EMREG (e.g., `authorizationUrl`, `supportedEvidenceTypes`).
     - Handle new data formats (e.g., `elm`, `eidas`) alongside ELMO.
 
 3. **Signature Verification**:
